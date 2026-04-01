@@ -14,7 +14,7 @@ const llmHelpText = `LOGS — Datadog log search and analysis reference
 
 COMMANDS
   search   Search logs with query syntax
-  tail     Poll the most recent logs (last 5 minutes)
+  tail     Poll recent logs (streams with --follow)
   facets   Get top facet values for a query
 
 EXAMPLES
@@ -25,8 +25,14 @@ EXAMPLES
   # Search with free text
   agent-dd logs search --query "timeout connection refused" --limit 20
 
-  # Tail recent logs
+  # Tail recent logs (last 5 minutes)
   agent-dd logs tail --query "service:web-api" --service web-api
+
+  # Stream logs continuously (poll every 5s)
+  agent-dd logs tail --query "service:web-api" --follow
+
+  # Stream with custom interval
+  agent-dd logs tail --query "service:web-api" --follow --interval 10
 
   # Get facet breakdown
   agent-dd logs facets --query "status:error" --from now-1h
@@ -50,4 +56,10 @@ COMPACT vs FULL OUTPUT
 SORT
   --sort asc    Oldest first
   --sort desc   Newest first (default)
+
+STREAMING (tail)
+  --follow, -f     Stream continuously instead of one-shot
+  --interval N     Poll interval in seconds (default: 5, requires --follow)
+  --source         Append source:X to the query
+  --service        Append service:X to the query
 `
