@@ -62,7 +62,7 @@ agent-dd incidents update <id> --status stable
 
 # Discovery
 agent-dd metrics list --search "system.cpu"
-agent-dd traces services
+agent-dd traces services [--env production] [--search checkout]
 agent-dd slo history <id> --from now-7d --to now
 ```
 

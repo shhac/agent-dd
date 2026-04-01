@@ -27,6 +27,12 @@ EXAMPLES
   # List all APM services
   agent-dd traces services
 
+  # List services in a specific environment
+  agent-dd traces services --env production
+
+  # Filter services by name
+  agent-dd traces services --search checkout
+
   # Search for slow traces (>1s)
   agent-dd traces search --query "@duration:>1000000000" --service my-api
 

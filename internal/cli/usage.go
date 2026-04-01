@@ -52,7 +52,7 @@ HOSTS
 
 TRACES (APM)
   agent-dd traces search --query <query> [--service <svc>] [--from <time>] [--to <time>]
-  agent-dd traces services [--search <text>]
+  agent-dd traces services [--search <text>] [--env <env>]
 
 INCIDENTS
   agent-dd incidents list [--status <status>]

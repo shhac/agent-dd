@@ -139,8 +139,9 @@ Defaults: `--from now-1h`, `--to now`.
 | Variable | Purpose |
 |---|---|
 | `DD_API_KEY` + `DD_APP_KEY` | Direct credential auth (skips org config) |
-| `DD_SITE` | Datadog site (with env var auth) |
+| `DD_SITE` | Datadog site domain (e.g. `datadoghq.com`, `datadoghq.eu`) |
 | `DD_ORG` | Default organization alias |
+| `DD_API_URL` | Override base API URL (e.g. `http://localhost:8321/api` for mock server) |
 
 ## Development
 
@@ -149,6 +150,8 @@ make build          # Build binary
 make test           # Run all tests
 make vet            # Go vet
 make dev ARGS="monitors list --status alert"
+make mock           # Start mock Datadog API on :8321
+make mock-dev ARGS="monitors list"  # Run CLI against mock server
 ```
 
 ## License
