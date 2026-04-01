@@ -23,14 +23,14 @@ type LogPage struct {
 }
 
 type LogSearchResponse struct {
-	Data []LogData      `json:"data"`
-	Meta *LogSearchMeta `json:"meta,omitempty"`
+	Data []LogData   `json:"data"`
+	Meta *SearchMeta `json:"meta,omitempty"`
 }
 
 type LogData struct {
-	ID         string         `json:"id"`
-	Type       string         `json:"type"`
-	Attributes LogAttributes  `json:"attributes"`
+	ID         string        `json:"id"`
+	Type       string        `json:"type"`
+	Attributes LogAttributes `json:"attributes"`
 }
 
 type LogAttributes struct {
@@ -41,14 +41,6 @@ type LogAttributes struct {
 	Host       string         `json:"host,omitempty"`
 	Tags       []string       `json:"tags,omitempty"`
 	Attributes map[string]any `json:"attributes,omitempty"`
-}
-
-type LogSearchMeta struct {
-	Page *LogSearchMetaPage `json:"page,omitempty"`
-}
-
-type LogSearchMetaPage struct {
-	After string `json:"after,omitempty"`
 }
 
 func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, limit int, cursor string) (*LogSearchResponse, error) {
@@ -62,15 +54,8 @@ func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, l
 	if sort != "" {
 		req.Sort = sort
 	}
-	page := &LogPage{}
-	if limit > 0 {
-		page.Limit = limit
-	}
-	if cursor != "" {
-		page.Cursor = cursor
-	}
-	if page.Limit > 0 || page.Cursor != "" {
-		req.Page = page
+	if limit > 0 || cursor != "" {
+		req.Page = &LogPage{Limit: limit, Cursor: cursor}
 	}
 
 	return doAndDecode[LogSearchResponse](c, ctx, http.MethodPost, "/v2/logs/events/search", req)
@@ -78,10 +63,7 @@ func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, l
 
 // Cursor returns the pagination cursor from the response, or empty if none.
 func (r *LogSearchResponse) Cursor() string {
-	if r.Meta != nil && r.Meta.Page != nil {
-		return r.Meta.Page.After
-	}
-	return ""
+	return CursorFrom(r.Meta)
 }
 
 type LogAggregateBucket struct {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
@@ -102,6 +103,31 @@ func doAndDecodeField[W any, T any](c *Client, ctx context.Context, method, path
 		return nil, err
 	}
 	return extract(wrapper), nil
+}
+
+// SearchMeta is the shared pagination metadata for v2 search APIs (logs, traces).
+type SearchMeta struct {
+	Page *SearchMetaPage `json:"page,omitempty"`
+}
+
+type SearchMetaPage struct {
+	After string `json:"after,omitempty"`
+}
+
+// CursorFrom extracts the pagination cursor, returning empty if not present.
+func CursorFrom(meta *SearchMeta) string {
+	if meta != nil && meta.Page != nil {
+		return meta.Page.After
+	}
+	return ""
+}
+
+// buildPath appends query parameters to a base path if any are set.
+func buildPath(base string, params url.Values) string {
+	if encoded := params.Encode(); encoded != "" {
+		return base + "?" + encoded
+	}
+	return base
 }
 
 func classifyHTTPError(status int, body []byte) *agenterrors.APIError {

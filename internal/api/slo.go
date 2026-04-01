@@ -20,12 +20,7 @@ func (c *Client) ListSLOs(ctx context.Context, search string, tags []string) ([]
 		params.Add("tags_query", tag)
 	}
 
-	path := "/v1/slo"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	resp, err := doAndDecode[SLOListResponse](c, ctx, http.MethodGet, path, nil)
+	resp, err := doAndDecode[SLOListResponse](c, ctx, http.MethodGet, buildPath("/v1/slo", params), nil)
 	if err != nil {
 		return nil, err
 	}

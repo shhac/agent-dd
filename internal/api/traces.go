@@ -11,24 +11,13 @@ import (
 )
 
 type TraceSearchResponse struct {
-	Data []TraceData     `json:"data"`
-	Meta *TraceSearchMeta `json:"meta,omitempty"`
-}
-
-type TraceSearchMeta struct {
-	Page *TraceSearchMetaPage `json:"page,omitempty"`
-}
-
-type TraceSearchMetaPage struct {
-	After string `json:"after,omitempty"`
+	Data []TraceData `json:"data"`
+	Meta *SearchMeta `json:"meta,omitempty"`
 }
 
 // Cursor returns the pagination cursor from the response, or empty if none.
 func (r *TraceSearchResponse) Cursor() string {
-	if r.Meta != nil && r.Meta.Page != nil {
-		return r.Meta.Page.After
-	}
-	return ""
+	return CursorFrom(r.Meta)
 }
 
 type TraceData struct {
@@ -51,10 +40,8 @@ type TraceAttributes struct {
 
 func (c *Client) SearchTraces(ctx context.Context, query, service, from, to string, limit int) (*TraceSearchResponse, error) {
 	filterQuery := query
-	if service != "" && query == "" {
-		filterQuery = "service:" + service
-	} else if service != "" {
-		filterQuery = "service:" + service + " " + query
+	if service != "" {
+		filterQuery = strings.TrimSpace("service:" + service + " " + query)
 	}
 
 	body := map[string]any{
@@ -92,12 +79,7 @@ func (c *Client) ListServices(ctx context.Context, search string) ([]APMService,
 		params.Set("filter", search)
 	}
 
-	path := "/v1/services"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
+	raw, err := c.do(ctx, http.MethodGet, buildPath("/v1/services", params), nil)
 	if err != nil {
 		return nil, err
 	}

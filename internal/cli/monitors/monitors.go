@@ -12,6 +12,19 @@ import (
 	"github.com/shhac/agent-dd/internal/output"
 )
 
+func toCompactMonitors(monitors []api.Monitor) []api.MonitorCompact {
+	compact := make([]api.MonitorCompact, len(monitors))
+	for i, m := range monitors {
+		compact[i] = api.MonitorCompact{
+			ID:     m.ID,
+			Name:   m.Name,
+			Status: m.Status,
+			Type:   m.Type,
+		}
+	}
+	return compact
+}
+
 func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	mon := &cobra.Command{
 		Use:   "monitors",
@@ -48,16 +61,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return nil
 				}
 
-				compact := make([]api.MonitorCompact, len(monitors))
-				for i, m := range monitors {
-					compact[i] = api.MonitorCompact{
-						ID:     m.ID,
-						Name:   m.Name,
-						Status: m.Status,
-						Type:   m.Type,
-					}
-				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(toCompactMonitors(monitors)), nil, g.Format)
 				return nil
 			})
 		},
@@ -109,16 +113,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				compact := make([]api.MonitorCompact, len(monitors))
-				for i, m := range monitors {
-					compact[i] = api.MonitorCompact{
-						ID:     m.ID,
-						Name:   m.Name,
-						Status: m.Status,
-						Type:   m.Type,
-					}
-				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(toCompactMonitors(monitors)), nil, g.Format)
 				return nil
 			})
 		},

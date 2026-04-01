@@ -60,20 +60,17 @@ func printJSON(data any, prune bool) {
 	if err != nil {
 		return
 	}
+	var decoded any
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		return
+	}
 	if prune {
-		var m any
-		if err := json.Unmarshal(b, &m); err == nil {
-			m = pruneNulls(m)
-			b, _ = json.Marshal(m)
-		}
+		decoded = pruneNulls(decoded)
 	}
-	var indented any
-	if err := json.Unmarshal(b, &indented); err == nil {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		enc.SetEscapeHTML(false)
-		enc.Encode(indented)
-	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	enc.Encode(decoded)
 }
 
 func printYAML(data any, prune bool) {

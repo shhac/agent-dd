@@ -24,12 +24,7 @@ func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*
 		params.Add("filter", tag)
 	}
 
-	path := "/v1/hosts"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	return doAndDecode[HostListResponse](c, ctx, http.MethodGet, path, nil)
+	return doAndDecode[HostListResponse](c, ctx, http.MethodGet, buildPath("/v1/hosts", params), nil)
 }
 
 func (c *Client) GetHost(ctx context.Context, hostname string) (*Host, error) {

@@ -19,12 +19,7 @@ func (c *Client) ListMonitors(ctx context.Context, search string, tags []string,
 		// Datadog v1 uses group_states to filter
 	}
 
-	path := "/v1/monitor"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	monitors, err := doAndDecode[[]Monitor](c, ctx, http.MethodGet, path, nil)
+	monitors, err := doAndDecode[[]Monitor](c, ctx, http.MethodGet, buildPath("/v1/monitor", params), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -43,15 +38,10 @@ func (c *Client) SearchMonitors(ctx context.Context, query string, status string
 		params.Set("query", query)
 	}
 
-	path := "/v1/monitor/search"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
 	type searchResp struct {
 		Monitors []Monitor `json:"monitors"`
 	}
-	resp, err := doAndDecode[searchResp](c, ctx, http.MethodGet, path, nil)
+	resp, err := doAndDecode[searchResp](c, ctx, http.MethodGet, buildPath("/v1/monitor/search", params), nil)
 	if err != nil {
 		return nil, err
 	}

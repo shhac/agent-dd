@@ -27,12 +27,7 @@ func (c *Client) ListIncidents(ctx context.Context, status string) (*IncidentLis
 		params.Set("filter[status]", status)
 	}
 
-	path := "/v2/incidents"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	return doAndDecode[IncidentListResponse](c, ctx, http.MethodGet, path, nil)
+	return doAndDecode[IncidentListResponse](c, ctx, http.MethodGet, buildPath("/v2/incidents", params), nil)
 }
 
 // HasMore returns true if there are more pages of incidents.

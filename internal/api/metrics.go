@@ -41,12 +41,7 @@ func (c *Client) ListMetrics(ctx context.Context, search string, tag string) (*M
 		params.Set("filter[tags]", tag)
 	}
 
-	path := "/v2/metrics"
-	if encoded := params.Encode(); encoded != "" {
-		path += "?" + encoded
-	}
-
-	return doAndDecode[MetricListResponse](c, ctx, http.MethodGet, path, nil)
+	return doAndDecode[MetricListResponse](c, ctx, http.MethodGet, buildPath("/v2/metrics", params), nil)
 }
 
 func (c *Client) searchMetricsV1(ctx context.Context, query string) (*MetricListResponse, error) {
