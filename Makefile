@@ -28,4 +28,10 @@ dev:
 vet:
 	go vet ./...
 
-.PHONY: build test test-short lint fmt clean dev vet
+mock:
+	go run ./cmd/mockdd
+
+mock-dev:
+	DD_API_URL=http://localhost:8321/api DD_API_KEY=mock DD_APP_KEY=mock go run ./cmd/agent-dd $(ARGS)
+
+.PHONY: build test test-short lint fmt clean dev vet mock mock-dev

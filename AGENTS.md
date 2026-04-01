@@ -15,6 +15,8 @@ make build          # Build binary
 make test           # Run all tests
 make vet            # Go vet
 make dev ARGS="monitors list --status alert"  # Run without building
+make mock           # Start mock Datadog API on :8321
+make mock-dev ARGS="monitors list"  # Run CLI against mock server
 ```
 
 ## Testing
@@ -39,9 +41,10 @@ Also distributed via homebrew tap (shhac/tap).
 
 ## Environment Variables
 
-- `DD_API_KEY` + `DD_APP_KEY` — direct credential fallback (skips org config)
-- `DD_SITE` — Datadog site (with env var auth)
+- `DD_API_KEY` + `DD_APP_KEY` — direct credential auth (skips org config)
+- `DD_SITE` — Datadog site domain (e.g. `datadoghq.com`, `datadoghq.eu`)
 - `DD_ORG` — organization alias (like `--org` flag)
+- `DD_API_URL` — override base API URL (for mock server: `http://localhost:8321/api`)
 
 ## What This Tool Does NOT Do
 

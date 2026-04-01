@@ -52,6 +52,10 @@ func ResolveOrg(orgAlias string) (string, error) {
 }
 
 func NewClientFromOrg(orgAlias string) (*api.Client, error) {
+	if apiURL := os.Getenv("DD_API_URL"); apiURL != "" {
+		return api.NewTestClient(apiURL, os.Getenv("DD_API_KEY"), os.Getenv("DD_APP_KEY")), nil
+	}
+
 	if apiKey, appKey := os.Getenv("DD_API_KEY"), os.Getenv("DD_APP_KEY"); orgAlias == "" && apiKey != "" && appKey != "" {
 		site := os.Getenv("DD_SITE")
 		if site == "" {
