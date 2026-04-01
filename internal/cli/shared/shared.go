@@ -51,17 +51,12 @@ func ResolveOrg(orgAlias string) (string, error) {
 }
 
 func NewClientFromOrg(orgAlias string) (*api.Client, error) {
-	// Check env vars first (standard DD env vars)
-	if orgAlias == "" {
-		apiKey := os.Getenv("DD_API_KEY")
-		appKey := os.Getenv("DD_APP_KEY")
-		if apiKey != "" && appKey != "" {
-			site := os.Getenv("DD_SITE")
-			if site == "" {
-				site = "datadoghq.com"
-			}
-			return api.NewClient(apiKey, appKey, site), nil
+	if apiKey, appKey := os.Getenv("DD_API_KEY"), os.Getenv("DD_APP_KEY"); orgAlias == "" && apiKey != "" && appKey != "" {
+		site := os.Getenv("DD_SITE")
+		if site == "" {
+			site = "datadoghq.com"
 		}
+		return api.NewClient(apiKey, appKey, site), nil
 	}
 
 	alias, err := ResolveOrg(orgAlias)

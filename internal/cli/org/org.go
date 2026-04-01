@@ -89,35 +89,14 @@ func registerUpdate(parent *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			alias := args[0]
 
-			if apiKey != "" || appKey != "" {
-				existing, err := credential.Get(alias)
-				if err != nil {
-					output.WriteError(os.Stderr, agenterrors.Wrap(err, agenterrors.FixableByHuman))
-					return nil
-				}
-				if apiKey == "" {
-					apiKey = existing.APIKey
-				}
-				if appKey == "" {
-					appKey = existing.AppKey
-				}
-				if _, err := credential.Store(alias, credential.Credential{
-					APIKey: apiKey,
-					AppKey: appKey,
-				}); err != nil {
-					output.WriteError(os.Stderr, agenterrors.Wrap(err, agenterrors.FixableByHuman))
-					return nil
-				}
+			if err := updateCredentials(alias, apiKey, appKey); err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
 			}
 
-			if site != "" {
-				cfg := config.Read()
-				org := cfg.Organizations[alias]
-				org.Site = site
-				if err := config.StoreOrganization(alias, org); err != nil {
-					output.WriteError(os.Stderr, agenterrors.Wrap(err, agenterrors.FixableByHuman))
-					return nil
-				}
+			if err := updateSite(alias, site); err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
 			}
 
 			output.PrintJSON(map[string]any{
@@ -240,4 +219,41 @@ func siteOrDefault(site string) string {
 		return "datadoghq.com"
 	}
 	return site
+}
+
+func updateCredentials(alias, apiKey, appKey string) error {
+	if apiKey == "" && appKey == "" {
+		return nil
+	}
+
+	existing, err := credential.Get(alias)
+	if err != nil {
+		return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+	}
+	if apiKey == "" {
+		apiKey = existing.APIKey
+	}
+	if appKey == "" {
+		appKey = existing.AppKey
+	}
+	if _, err := credential.Store(alias, credential.Credential{
+		APIKey: apiKey,
+		AppKey: appKey,
+	}); err != nil {
+		return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+	}
+	return nil
+}
+
+func updateSite(alias, site string) error {
+	if site == "" {
+		return nil
+	}
+	cfg := config.Read()
+	org := cfg.Organizations[alias]
+	org.Site = site
+	if err := config.StoreOrganization(alias, org); err != nil {
+		return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+	}
+	return nil
 }
