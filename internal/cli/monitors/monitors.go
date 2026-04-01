@@ -2,7 +2,6 @@ package monitors
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -128,7 +127,7 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 	cmd := &cobra.Command{
 		Use:   "mute <id>",
-		Short: "Mute a monitor",
+		Short: "Mute a monitor (creates a downtime)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
@@ -137,23 +136,25 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			var endStr string
+			var endEpoch int64
 			if end != "" {
 				t, err := shared.ParseTime(end)
 				if err != nil {
 					output.WriteError(os.Stderr, err)
 					return nil
 				}
-				endStr = fmt.Sprintf("%d", t.Unix())
+				endEpoch = t.Unix()
 			}
 
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				if err := client.MuteMonitor(ctx, id, endStr, reason); err != nil {
+				downtime, err := client.CreateDowntime(ctx, id, endEpoch, reason)
+				if err != nil {
 					return err
 				}
 				shared.WriteItem(map[string]any{
-					"status":     "muted",
-					"monitor_id": id,
+					"status":      "muted",
+					"monitor_id":  id,
+					"downtime_id": downtime.ID,
 				}, g.Format)
 				return nil
 			})
@@ -167,7 +168,7 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 func registerUnmute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd := &cobra.Command{
 		Use:   "unmute <id>",
-		Short: "Unmute a monitor",
+		Short: "Unmute a monitor (cancels active downtimes)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
@@ -176,12 +177,23 @@ func registerUnmute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				if err := client.UnmuteMonitor(ctx, id); err != nil {
+				downtimes, err := client.ListActiveDowntimes(ctx, id)
+				if err != nil {
 					return err
 				}
+
+				cancelled := make([]string, 0, len(downtimes))
+				for _, dt := range downtimes {
+					if err := client.CancelDowntime(ctx, dt.ID); err != nil {
+						return err
+					}
+					cancelled = append(cancelled, dt.ID)
+				}
+
 				shared.WriteItem(map[string]any{
-					"status":     "unmuted",
-					"monitor_id": id,
+					"status":              "unmuted",
+					"monitor_id":          id,
+					"downtimes_cancelled": len(cancelled),
 				}, g.Format)
 				return nil
 			})

@@ -85,21 +85,3 @@ func filterMonitorsByStatus(monitors []Monitor, status string) []Monitor {
 	return filtered
 }
 
-func (c *Client) MuteMonitor(ctx context.Context, id int, end string, reason string) error {
-	body := map[string]any{}
-	if end != "" {
-		body["end"] = end
-	}
-	if reason != "" {
-		body["scope"] = "*"
-	}
-	path := fmt.Sprintf("/v1/monitor/%d/mute", id)
-	_, err := c.do(ctx, http.MethodPost, path, body)
-	return err
-}
-
-func (c *Client) UnmuteMonitor(ctx context.Context, id int) error {
-	path := fmt.Sprintf("/v1/monitor/%d/unmute", id)
-	_, err := c.do(ctx, http.MethodPost, path, map[string]any{"scope": "*", "all_scopes": true})
-	return err
-}
