@@ -95,21 +95,15 @@ func registerHistory(parent *cobra.Command, globals func() *shared.GlobalFlags) 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 
-			fromTime, err := shared.ParseTimeDefaultFrom(from)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
-				return nil
-			}
-			toTime, err := shared.ParseTimeDefaultTo(to)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
-				return nil
-			}
-
-			// Validate that if --from wasn't provided, we default to 7d for SLO history
 			if from == "" {
 				output.WriteError(os.Stderr, agenterrors.New("--from is required for SLO history", agenterrors.FixableByAgent).
 					WithHint("Example: --from now-7d --to now"))
+				return nil
+			}
+
+			fromTime, toTime, err := shared.ParseTimeRange(from, to)
+			if err != nil {
+				output.WriteError(os.Stderr, err)
 				return nil
 			}
 

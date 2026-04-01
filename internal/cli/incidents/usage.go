@@ -1,19 +1,13 @@
 package incidents
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+
+	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
 func registerLLMHelp(parent *cobra.Command) {
-	parent.AddCommand(&cobra.Command{
-		Use:   "llm-help",
-		Short: "Detailed incidents reference for LLMs",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Print(llmHelpText)
-		},
-	})
+	shared.RegisterLLMHelp(parent, "Detailed incidents reference for LLMs", llmHelpText)
 }
 
 const llmHelpText = `INCIDENTS — Datadog incident management reference

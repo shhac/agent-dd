@@ -40,12 +40,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			fromTime, err := shared.ParseTimeDefaultFrom(from)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
-				return nil
-			}
-			toTime, err := shared.ParseTimeDefaultTo(to)
+			fromTime, toTime, err := shared.ParseTimeRange(from, to)
 			if err != nil {
 				output.WriteError(os.Stderr, err)
 				return nil

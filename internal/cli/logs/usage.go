@@ -1,19 +1,13 @@
 package logs
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+
+	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
 func registerLLMHelp(parent *cobra.Command) {
-	parent.AddCommand(&cobra.Command{
-		Use:   "llm-help",
-		Short: "Detailed log reference for LLMs",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Print(llmHelpText)
-		},
-	})
+	shared.RegisterLLMHelp(parent, "Detailed log reference for LLMs", llmHelpText)
 }
 
 const llmHelpText = `LOGS — Datadog log search and analysis reference
