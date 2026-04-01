@@ -10,6 +10,48 @@ import (
 	"github.com/shhac/agent-dd/internal/api"
 )
 
+func TestGetIncident(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v2/incidents/inc-999" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("DD-API-KEY") != "test-key" {
+			t.Error("missing or wrong DD-API-KEY")
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"id":   "inc-999",
+				"type": "incidents",
+				"attributes": map[string]any{
+					"title":    "Database outage",
+					"status":   "active",
+					"severity": "SEV-1",
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "test-key", "test-app")
+	incident, err := client.GetIncident(context.Background(), "inc-999")
+	if err != nil {
+		t.Fatalf("GetIncident failed: %v", err)
+	}
+	if incident.ID != "inc-999" {
+		t.Errorf("expected ID=inc-999, got %s", incident.ID)
+	}
+	if incident.Attributes.Title != "Database outage" {
+		t.Errorf("expected title=Database outage, got %s", incident.Attributes.Title)
+	}
+	if incident.Attributes.Status != "active" {
+		t.Errorf("expected status=active, got %s", incident.Attributes.Status)
+	}
+}
+
 func TestCreateIncident(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

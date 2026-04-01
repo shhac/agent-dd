@@ -2,10 +2,33 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 )
+
+// Monitor represents a Datadog monitor.
+type Monitor struct {
+	ID       int              `json:"id"`
+	Name     string           `json:"name"`
+	Type     string           `json:"type"`
+	Query    string           `json:"query,omitempty"`
+	Message  string           `json:"message,omitempty"`
+	Tags     []string         `json:"tags,omitempty"`
+	Status   string           `json:"overall_state,omitempty"`
+	Created  string           `json:"created,omitempty"`
+	Modified string           `json:"modified,omitempty"`
+	Options  *json.RawMessage `json:"options,omitempty"`
+}
+
+// MonitorCompact is the token-efficient view of a monitor.
+type MonitorCompact struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Type   string `json:"type"`
+}
 
 func (c *Client) ListMonitors(ctx context.Context, search string, tags []string, status string) ([]Monitor, error) {
 	params := url.Values{}

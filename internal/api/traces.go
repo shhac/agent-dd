@@ -10,6 +10,26 @@ import (
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
+// Trace span from APM.
+type TraceSpan struct {
+	TraceID  string  `json:"trace_id"`
+	SpanID   string  `json:"span_id"`
+	Service  string  `json:"service,omitempty"`
+	Name     string  `json:"name,omitempty"`
+	Resource string  `json:"resource,omitempty"`
+	Type     string  `json:"type,omitempty"`
+	Start    int64   `json:"start,omitempty"`
+	Duration float64 `json:"duration,omitempty"`
+	Error    int     `json:"error,omitempty"`
+	Status   string  `json:"status,omitempty"`
+}
+
+// APMService represents an APM service.
+type APMService struct {
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"`
+}
+
 type TraceSearchResponse struct {
 	Data []TraceData `json:"data"`
 	Meta *SearchMeta `json:"meta,omitempty"`

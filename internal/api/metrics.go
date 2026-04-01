@@ -7,6 +7,24 @@ import (
 	"net/url"
 )
 
+// MetricSeries represents a metric query result series.
+type MetricSeries struct {
+	Metric string      `json:"metric,omitempty"`
+	Tags   []string    `json:"tags,omitempty"`
+	Points [][]float64 `json:"points"`
+}
+
+// MetricMetadata represents metadata about a metric.
+type MetricMetadata struct {
+	Name        string `json:"metric,omitempty"`
+	Type        string `json:"type,omitempty"`
+	Unit        string `json:"unit,omitempty"`
+	Description string `json:"description,omitempty"`
+	Integration string `json:"integration,omitempty"`
+	PerUnit     string `json:"per_unit,omitempty"`
+	ShortName   string `json:"short_name,omitempty"`
+}
+
 type MetricQueryResponse struct {
 	Status string         `json:"status"`
 	Series []MetricSeries `json:"series"`

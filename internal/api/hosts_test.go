@@ -50,6 +50,50 @@ func TestMuteHost(t *testing.T) {
 	}
 }
 
+func TestListHosts(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/hosts" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		q := r.URL.Query()
+		filters := q["filter"]
+		if len(filters) < 1 || filters[0] != "web" {
+			t.Errorf("expected filter to contain web, got %v", filters)
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"host_list": []map[string]any{
+				{"name": "web-01.prod", "up": true, "is_muted": false},
+				{"name": "web-02.prod", "up": true, "is_muted": true},
+			},
+			"total_returned": 2,
+			"total_matching": 5,
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	resp, err := client.ListHosts(context.Background(), "web", nil)
+	if err != nil {
+		t.Fatalf("ListHosts failed: %v", err)
+	}
+	if resp.TotalReturned != 2 {
+		t.Errorf("expected TotalReturned=2, got %d", resp.TotalReturned)
+	}
+	if resp.TotalMatching != 5 {
+		t.Errorf("expected TotalMatching=5, got %d", resp.TotalMatching)
+	}
+	if len(resp.HostList) != 2 {
+		t.Fatalf("expected 2 hosts, got %d", len(resp.HostList))
+	}
+	if resp.HostList[0].Name != "web-01.prod" {
+		t.Errorf("expected first host name=web-01.prod, got %s", resp.HostList[0].Name)
+	}
+}
+
 func TestGetHostNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

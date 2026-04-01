@@ -9,6 +9,19 @@ import (
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
+// Host represents a Datadog host.
+type Host struct {
+	Name       string   `json:"name"`
+	Aliases    []string `json:"aliases,omitempty"`
+	Apps       []string `json:"apps,omitempty"`
+	IsMuted    bool     `json:"is_muted"`
+	MuteTimeout int64   `json:"mute_timeout,omitempty"`
+	Sources    []string `json:"sources,omitempty"`
+	Up         bool     `json:"up"`
+	TagsBySource map[string][]string `json:"tags_by_source,omitempty"`
+	LastReportedTime int64 `json:"last_reported_time,omitempty"`
+}
+
 type HostListResponse struct {
 	HostList   []Host `json:"host_list"`
 	TotalReturned int `json:"total_returned"`

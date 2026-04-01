@@ -53,6 +53,58 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestClassifyHTTPErrorDefault(t *testing.T) {
+	for _, status := range []int{400, 409} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			json.NewEncoder(w).Encode(map[string]any{"errors": []string{"bad request"}})
+		}))
+
+		client := api.NewTestClient(srv.URL+"/api", "key", "app")
+		err := client.Validate(context.Background())
+		srv.Close()
+
+		if err == nil {
+			t.Errorf("status %d: expected error, got nil", status)
+			continue
+		}
+		var aerr *agenterrors.APIError
+		if !errors.As(err, &aerr) {
+			t.Errorf("status %d: expected *APIError, got %T", status, err)
+			continue
+		}
+		if aerr.FixableBy != agenterrors.FixableByAgent {
+			t.Errorf("status %d: fixable_by = %q, want %q", status, aerr.FixableBy, agenterrors.FixableByAgent)
+		}
+		if aerr.Hint != "" {
+			t.Errorf("status %d: expected empty hint for default branch, got %q", status, aerr.Hint)
+		}
+	}
+}
+
+func TestDoAndDecodeMalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("not json"))
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	// Validate calls do() which returns raw JSON, then we need a method that
+	// calls doAndDecode to trigger the unmarshal error. ListSLOs uses doAndDecode.
+	_, err := client.ListSLOs(context.Background(), "", nil)
+	if err == nil {
+		t.Fatal("expected error for malformed JSON, got nil")
+	}
+	var aerr *agenterrors.APIError
+	if !errors.As(err, &aerr) {
+		t.Fatalf("expected *APIError, got %T: %v", err, err)
+	}
+	if aerr.FixableBy != agenterrors.FixableByAgent {
+		t.Errorf("expected FixableByAgent, got %s", aerr.FixableBy)
+	}
+}
+
 func TestClassifyHTTPErrors(t *testing.T) {
 	tests := []struct {
 		status   int

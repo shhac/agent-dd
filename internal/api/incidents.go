@@ -6,6 +6,27 @@ import (
 	"net/url"
 )
 
+// Incident represents a Datadog incident.
+type Incident struct {
+	ID         string              `json:"id"`
+	Type       string              `json:"type,omitempty"`
+	Attributes *IncidentAttributes `json:"attributes,omitempty"`
+}
+
+type IncidentAttributes struct {
+	Title         string `json:"title,omitempty"`
+	Status        string `json:"status,omitempty"`
+	Severity      string `json:"severity,omitempty"`
+	Created       string `json:"created,omitempty"`
+	Modified      string `json:"modified,omitempty"`
+	CommanderUser *IncidentUser `json:"commander_user,omitempty"`
+}
+
+type IncidentUser struct {
+	Handle string `json:"handle,omitempty"`
+	Name   string `json:"name,omitempty"`
+}
+
 type IncidentListResponse struct {
 	Data []Incident         `json:"data"`
 	Meta *IncidentListMeta  `json:"meta,omitempty"`

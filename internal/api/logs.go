@@ -5,6 +5,26 @@ import (
 	"net/http"
 )
 
+// LogEntry represents a Datadog log entry.
+type LogEntry struct {
+	ID         string            `json:"id"`
+	Timestamp  string            `json:"timestamp,omitempty"`
+	Service    string            `json:"service,omitempty"`
+	Status     string            `json:"status,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Host       string            `json:"host,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	Attributes map[string]any    `json:"attributes,omitempty"`
+}
+
+// LogEntryCompact is the token-efficient view of a log entry.
+type LogEntryCompact struct {
+	Timestamp string `json:"timestamp"`
+	Service   string `json:"service,omitempty"`
+	Status    string `json:"status"`
+	Message   string `json:"message"`
+}
+
 type LogSearchRequest struct {
 	Filter *LogFilter `json:"filter"`
 	Sort   string     `json:"sort,omitempty"`

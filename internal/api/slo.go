@@ -7,6 +7,41 @@ import (
 	"net/url"
 )
 
+// SLO represents a Service Level Objective.
+type SLO struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Type        string      `json:"type,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Tags        []string    `json:"tags,omitempty"`
+	Thresholds  []SLOThreshold `json:"thresholds,omitempty"`
+	Status      *SLOStatus  `json:"overall_status,omitempty"`
+}
+
+type SLOThreshold struct {
+	Timeframe string  `json:"timeframe"`
+	Target    float64 `json:"target"`
+	Warning   float64 `json:"warning,omitempty"`
+}
+
+type SLOStatus struct {
+	Status    float64 `json:"status,omitempty"`
+	ErrorBudgetRemaining float64 `json:"error_budget_remaining,omitempty"`
+}
+
+// SLOHistory represents SLO history data.
+type SLOHistory struct {
+	Overall  *SLOHistoryMetrics   `json:"overall,omitempty"`
+	Thresholds map[string]SLOHistoryMetrics `json:"thresholds,omitempty"`
+}
+
+type SLOHistoryMetrics struct {
+	SLIValue          float64 `json:"sli_value,omitempty"`
+	SpanPrecision     float64 `json:"span_precision,omitempty"`
+	Uptime            float64 `json:"uptime,omitempty"`
+	ErrorBudgetRemaining float64 `json:"error_budget_remaining,omitempty"`
+}
+
 type SLOListResponse struct {
 	Data []SLO `json:"data"`
 }
