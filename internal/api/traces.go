@@ -2,12 +2,9 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
-
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
 // Trace span from APM.
@@ -78,40 +75,29 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", body)
 }
 
-type ServiceListResponse struct {
-	Data []ServiceData `json:"data"`
+type serviceListResponse struct {
+	Data struct {
+		Attributes struct {
+			Services []string `json:"services"`
+		} `json:"attributes"`
+	} `json:"data"`
 }
 
-type ServiceData struct {
-	ID         string            `json:"id"`
-	Type       string            `json:"type"`
-	Attributes ServiceAttributes `json:"attributes"`
-}
-
-type ServiceAttributes struct {
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
-}
-
-func (c *Client) ListServices(ctx context.Context, search string) ([]APMService, error) {
+func (c *Client) ListServices(ctx context.Context, env, search string) ([]APMService, error) {
 	params := url.Values{}
-	if search != "" {
-		params.Set("filter", search)
+	if env != "" {
+		params.Set("filter[env]", env)
+	} else {
+		params.Set("filter[env]", "*")
 	}
 
-	raw, err := c.do(ctx, http.MethodGet, buildPath("/v1/services", params), nil)
+	resp, err := doAndDecode[serviceListResponse](c, ctx, http.MethodGet, buildPath("/v2/apm/services", params), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// v1 services endpoint returns a map
-	var serviceMap map[string]any
-	if err := json.Unmarshal(raw, &serviceMap); err != nil {
-		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
-	}
-
-	services := make([]APMService, 0)
-	for name := range serviceMap {
+	services := make([]APMService, 0, len(resp.Data.Attributes.Services))
+	for _, name := range resp.Data.Attributes.Services {
 		if search == "" || strings.Contains(name, search) {
 			services = append(services, APMService{Name: name})
 		}

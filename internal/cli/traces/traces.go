@@ -84,7 +84,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 }
 
 func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags) {
-	var search string
+	var search, env string
 
 	cmd := &cobra.Command{
 		Use:   "services",
@@ -92,7 +92,7 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				services, err := client.ListServices(ctx, search)
+				services, err := client.ListServices(ctx, env, search)
 				if err != nil {
 					return err
 				}
@@ -102,5 +102,6 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 		},
 	}
 	cmd.Flags().StringVar(&search, "search", "", "Filter service names")
+	cmd.Flags().StringVar(&env, "env", "", "Filter by environment (default: all)")
 	parent.AddCommand(cmd)
 }

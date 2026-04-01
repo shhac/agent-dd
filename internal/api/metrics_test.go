@@ -98,22 +98,19 @@ func TestListMetricsV2(t *testing.T) {
 	}
 }
 
-func TestListMetricsV1Search(t *testing.T) {
+func TestListMetricsSearch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v1/search" {
+		if r.URL.Path != "/api/v2/metrics" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		q := r.URL.Query().Get("q")
-		if q != "metrics:system.cpu" {
-			t.Errorf("expected q=metrics:system.cpu, got %q", q)
+		if q := r.URL.Query().Get("filter[metric]"); q != "system.cpu" {
+			t.Errorf("expected filter[metric]=system.cpu, got %q", q)
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
-			"results": map[string]any{
-				"metrics": []string{"system.cpu.user", "system.cpu.system", "system.cpu.idle"},
+			"data": []map[string]any{
+				{"id": "system.cpu.user", "type": "metrics"},
+				{"id": "system.cpu.system", "type": "metrics"},
 			},
 		})
 	}))
@@ -122,18 +119,10 @@ func TestListMetricsV1Search(t *testing.T) {
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
 	resp, err := client.ListMetrics(context.Background(), "system.cpu", "")
 	if err != nil {
-		t.Fatalf("ListMetrics (v1 search) failed: %v", err)
+		t.Fatalf("ListMetrics (search) failed: %v", err)
 	}
-	if len(resp.Data) != 3 {
-		t.Fatalf("expected 3 metrics, got %d", len(resp.Data))
-	}
-	for _, entry := range resp.Data {
-		if entry.Type != "metric" {
-			t.Errorf("expected type=metric, got %s", entry.Type)
-		}
-	}
-	if resp.Data[0].ID != "system.cpu.user" {
-		t.Errorf("expected first ID=system.cpu.user, got %s", resp.Data[0].ID)
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 metrics, got %d", len(resp.Data))
 	}
 }
 
