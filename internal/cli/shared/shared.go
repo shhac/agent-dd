@@ -108,11 +108,12 @@ func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, clien
 	}
 	if err != nil {
 		output.WriteError(os.Stderr, err)
-		return nil
+		return err
 	}
 
 	if err := fn(ctx, client); err != nil {
 		output.WriteError(os.Stderr, err)
+		return err
 	}
 	return nil
 }
