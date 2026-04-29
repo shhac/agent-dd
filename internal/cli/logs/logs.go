@@ -170,7 +170,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&query, "query", "", "Log search query (required)")
 	cmd.Flags().StringVar(&source, "source", "", "Filter by source")
 	cmd.Flags().StringVar(&service, "service", "", "Filter by service")
-	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream continuously")
+	cmd.Flags().BoolVar(&follow, "follow", false, "Stream continuously")
 	cmd.Flags().IntVar(&interval, "interval", 5, "Poll interval in seconds (with --follow)")
 	parent.AddCommand(cmd)
 }

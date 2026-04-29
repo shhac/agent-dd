@@ -42,8 +42,8 @@ func newRootCmd(version string) *cobra.Command {
 	}
 
 	root.PersistentFlags().StringVarP(&flagOrg, "org", "o", "", "Organization alias (or set DD_ORG, or DD_API_KEY + DD_APP_KEY)")
-	root.PersistentFlags().StringVar(&flagFormat, "format", "", "Output format: json, yaml, jsonl")
-	root.PersistentFlags().IntVar(&flagTimeout, "timeout", 0, "Request timeout in milliseconds")
+	root.PersistentFlags().StringVarP(&flagFormat, "format", "f", "", "Output format: json, yaml, jsonl")
+	root.PersistentFlags().IntVarP(&flagTimeout, "timeout", "t", 0, "Request timeout in milliseconds")
 
 	registerUsageCommand(root)
 	org.Register(root)
