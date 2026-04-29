@@ -1,7 +1,7 @@
 ---
 name: agent-dd
 description: Triage and investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs. Use when the user asks about alerts, log errors, metric spikes, trace latency, incident management, SLO burn rate, error budgets, or on-call triage in Datadog.
-allowed-tools: Bash Read Grep Glob
+allowed-tools: Bash(agent-dd *) Read Grep Glob
 ---
 
 # agent-dd — Datadog Triage CLI
