@@ -43,12 +43,13 @@ func parseRelativeTime(s string) (time.Time, error) {
 	}
 
 	var sign time.Duration = -1
-	if rest[0] == '+' {
+	switch rest[0] {
+	case '+':
 		sign = 1
 		rest = rest[1:]
-	} else if rest[0] == '-' {
+	case '-':
 		rest = rest[1:]
-	} else {
+	default:
 		return time.Time{}, agenterrors.Newf(agenterrors.FixableByAgent, "invalid relative time %q", s)
 	}
 

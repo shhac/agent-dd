@@ -131,10 +131,10 @@ func WritePaginatedList(items []any, pagination *output.Pagination, format strin
 	if f == output.FormatNDJSON {
 		w := output.NewNDJSONWriter(os.Stdout)
 		for _, item := range items {
-			w.WriteItem(item)
+			_ = w.WriteItem(item)
 		}
 		if pagination != nil {
-			w.WritePagination(pagination)
+			_ = w.WritePagination(pagination)
 		}
 		return
 	}

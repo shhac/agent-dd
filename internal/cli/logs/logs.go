@@ -138,7 +138,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return err
 				}
 				for _, c := range toCompactLogs(resp.Data) {
-					w.WriteItem(c)
+					_ = w.WriteItem(c)
 				}
 
 				if !follow {
@@ -160,7 +160,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 							return err
 						}
 						for _, c := range toCompactLogs(resp.Data) {
-							w.WriteItem(c)
+							_ = w.WriteItem(c)
 						}
 					}
 				}

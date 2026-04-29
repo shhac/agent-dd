@@ -52,7 +52,7 @@ func authMiddleware(next http.Handler) http.Handler {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // --- Validate ---
@@ -115,7 +115,7 @@ var downtimeCounter int
 func handleDowntimes(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		downtimeCounter++
 		dtID := fmt.Sprintf("dt-%06d", downtimeCounter)
@@ -178,7 +178,7 @@ func handleDowntimeByID(w http.ResponseWriter, r *http.Request) {
 
 func handleLogSearch(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
-	json.NewDecoder(r.Body).Decode(&body)
+	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	filter, _ := body["filter"].(map[string]any)
 	query, _ := filter["query"].(string)
@@ -406,7 +406,7 @@ func handleServiceList(w http.ResponseWriter, r *http.Request) {
 func handleIncidents(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		data, _ := body["data"].(map[string]any)
 		attrs, _ := data["attributes"].(map[string]any)
 		inc := map[string]any{

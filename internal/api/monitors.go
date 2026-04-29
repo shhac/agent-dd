@@ -38,9 +38,8 @@ func (c *Client) ListMonitors(ctx context.Context, search string, tags []string,
 	for _, tag := range tags {
 		params.Add("monitor_tags", tag)
 	}
-	if status != "" {
-		// Datadog v1 uses group_states to filter
-	}
+	// Status filtering: Datadog v1 monitor list takes group_states, but the
+	// CLI doesn't expose that yet — clients filter client-side instead.
 
 	monitors, err := doAndDecode[[]Monitor](c, ctx, http.MethodGet, buildPath("/v1/monitor", params), nil)
 	if err != nil {

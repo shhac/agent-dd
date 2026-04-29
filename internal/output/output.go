@@ -70,7 +70,7 @@ func printJSON(data any, prune bool) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
-	enc.Encode(decoded)
+	_ = enc.Encode(decoded)
 }
 
 func printYAML(data any, prune bool) {
@@ -87,7 +87,7 @@ func printYAML(data any, prune bool) {
 	}
 	enc := yaml.NewEncoder(os.Stdout)
 	enc.SetIndent(2)
-	enc.Encode(m)
+	_ = enc.Encode(m)
 }
 
 func WriteError(w io.Writer, err error) {
@@ -104,7 +104,7 @@ func WriteError(w io.Writer, err error) {
 	}
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	enc.Encode(payload)
+	_ = enc.Encode(payload)
 }
 
 type NDJSONWriter struct {
