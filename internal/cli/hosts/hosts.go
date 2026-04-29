@@ -116,4 +116,3 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&reason, "reason", "", "Reason for muting")
 	parent.AddCommand(cmd)
 }
-

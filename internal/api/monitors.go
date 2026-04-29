@@ -84,4 +84,3 @@ func filterMonitorsByStatus(monitors []Monitor, status string) []Monitor {
 	}
 	return filtered
 }
-

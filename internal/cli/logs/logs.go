@@ -34,7 +34,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	registerSearch(logs, globals)
 	registerTail(logs, globals)
 	registerFacets(logs, globals)
-	registerLLMHelp(logs)
+	registerUsage(logs)
 
 	root.AddCommand(logs)
 }

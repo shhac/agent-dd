@@ -45,7 +45,7 @@ func newRootCmd(version string) *cobra.Command {
 	root.PersistentFlags().StringVar(&flagFormat, "format", "", "Output format: json, yaml, jsonl")
 	root.PersistentFlags().IntVar(&flagTimeout, "timeout", 0, "Request timeout in milliseconds")
 
-	registerLLMHelpCommand(root)
+	registerUsageCommand(root)
 	org.Register(root)
 	monitors.Register(root, allGlobals)
 	logs.Register(root, allGlobals)

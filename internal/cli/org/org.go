@@ -184,8 +184,8 @@ func registerSetDefault(parent *cobra.Command) {
 				return nil
 			}
 			output.PrintJSON(map[string]any{
-				"status":  "default_set",
-				"alias":   alias,
+				"status": "default_set",
+				"alias":  alias,
 			}, true)
 			return nil
 		},

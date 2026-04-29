@@ -122,8 +122,8 @@ func (n *NDJSONWriter) WriteItem(item any) error {
 }
 
 type Pagination struct {
-	HasMore    bool `json:"has_more"`
-	TotalItems int  `json:"total_items,omitempty"`
+	HasMore    bool   `json:"has_more"`
+	TotalItems int    `json:"total_items,omitempty"`
 	NextCursor string `json:"next_cursor,omitempty"`
 }
 

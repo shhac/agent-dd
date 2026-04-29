@@ -342,8 +342,8 @@ func handleHosts(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{
 		"host_list":      result,
-		"total_returned":  len(result),
-		"total_matching":  len(result),
+		"total_returned": len(result),
+		"total_matching": len(result),
 	})
 }
 

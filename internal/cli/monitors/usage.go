@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed monitor reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "monitors", usageText)
 }
 
-const llmHelpText = `MONITORS — Datadog monitor triage reference
+const usageText = `MONITORS — Datadog monitor triage reference
 
 COMMANDS
   list     List monitors with optional filters

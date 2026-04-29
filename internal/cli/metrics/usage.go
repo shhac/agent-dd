@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed metrics reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "metrics", usageText)
 }
 
-const llmHelpText = `METRICS — Datadog metric querying reference
+const usageText = `METRICS — Datadog metric querying reference
 
 COMMANDS
   query      Query metric timeseries data

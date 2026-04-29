@@ -21,7 +21,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 
 	registerSearch(tr, globals)
 	registerServices(tr, globals)
-	registerLLMHelp(tr)
+	registerUsage(tr)
 
 	root.AddCommand(tr)
 }

@@ -20,7 +20,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	registerQuery(met, globals)
 	registerList(met, globals)
 	registerMetadata(met, globals)
-	registerLLMHelp(met)
+	registerUsage(met)
 
 	root.AddCommand(met)
 }

@@ -8,9 +8,9 @@ import (
 )
 
 type Config struct {
-	DefaultOrg    string                 `json:"default_org,omitempty"`
+	DefaultOrg    string                  `json:"default_org,omitempty"`
 	Organizations map[string]Organization `json:"organizations"`
-	Settings      Settings               `json:"settings"`
+	Settings      Settings                `json:"settings"`
 }
 
 type Organization struct {

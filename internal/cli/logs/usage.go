@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed log reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "logs", usageText)
 }
 
-const llmHelpText = `LOGS — Datadog log search and analysis reference
+const usageText = `LOGS — Datadog log search and analysis reference
 
 COMMANDS
   search   Search logs with query syntax

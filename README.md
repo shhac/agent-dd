@@ -6,7 +6,7 @@ Datadog triage CLI for AI agents. Investigation workflows — monitors, logs, me
 - **Structured error classification** — every error includes `fixable_by: agent|human|retry` so AI agents can self-correct without parsing messages
 - **Triage-focused** — only the commands you need during an investigation, not the 200+ Datadog API endpoints
 - **Multi-org support** — switch between Datadog organizations with `--org`, credentials stored in macOS Keychain
-- **Self-documenting** — `agent-dd llm-help` and per-domain `agent-dd <domain> llm-help` for agent-friendly reference
+- **Self-documenting** — `agent-dd usage` and per-domain `agent-dd <domain> usage` for agent-friendly reference
 
 ### Why not the Datadog CLI?
 
@@ -76,15 +76,15 @@ agent-dd traces search --service web-api --query "@duration:>1000000000" --from 
 ```text
 agent-dd
 ├── org           add, update, remove, list, set-default, test
-├── monitors      list, get, search, mute, unmute, llm-help
-├── logs          search, tail, facets, llm-help
-├── metrics       query, list, metadata, llm-help
+├── monitors      list, get, search, mute, unmute, usage
+├── logs          search, tail, facets, usage
+├── metrics       query, list, metadata, usage
 ├── events        list, get
 ├── hosts         list, get, mute
-├── traces        search, services, llm-help
-├── incidents     list, get, create, update, llm-help
-├── slo           list, get, history, llm-help
-├── llm-help      top-level reference card
+├── traces        search, services, usage
+├── incidents     list, get, create, update, usage
+├── slo           list, get, history, usage
+├── usage         top-level reference card
 └── version
 ```
 

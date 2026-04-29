@@ -10,9 +10,9 @@ import (
 
 func TestParseTimeRelative(t *testing.T) {
 	tests := []struct {
-		input    string
-		wantErr  bool
-		checkFn  func(time.Time) bool
+		input   string
+		wantErr bool
+		checkFn func(time.Time) bool
 	}{
 		{"now", false, func(t time.Time) bool { return time.Since(t) < 2*time.Second }},
 		{"now-15m", false, func(t time.Time) bool {

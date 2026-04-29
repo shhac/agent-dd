@@ -14,11 +14,11 @@ type Incident struct {
 }
 
 type IncidentAttributes struct {
-	Title         string `json:"title,omitempty"`
-	Status        string `json:"status,omitempty"`
-	Severity      string `json:"severity,omitempty"`
-	Created       string `json:"created,omitempty"`
-	Modified      string `json:"modified,omitempty"`
+	Title         string        `json:"title,omitempty"`
+	Status        string        `json:"status,omitempty"`
+	Severity      string        `json:"severity,omitempty"`
+	Created       string        `json:"created,omitempty"`
+	Modified      string        `json:"modified,omitempty"`
 	CommanderUser *IncidentUser `json:"commander_user,omitempty"`
 }
 
@@ -28,8 +28,8 @@ type IncidentUser struct {
 }
 
 type IncidentListResponse struct {
-	Data []Incident         `json:"data"`
-	Meta *IncidentListMeta  `json:"meta,omitempty"`
+	Data []Incident        `json:"data"`
+	Meta *IncidentListMeta `json:"meta,omitempty"`
 }
 
 type IncidentListMeta struct {

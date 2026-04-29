@@ -35,7 +35,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	registerSearch(mon, globals)
 	registerMute(mon, globals)
 	registerUnmute(mon, globals)
-	registerLLMHelp(mon)
+	registerUsage(mon)
 
 	root.AddCommand(mon)
 }

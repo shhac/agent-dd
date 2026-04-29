@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed incidents reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "incidents", usageText)
 }
 
-const llmHelpText = `INCIDENTS — Datadog incident management reference
+const usageText = `INCIDENTS — Datadog incident management reference
 
 COMMANDS
   list     List incidents with optional status filter

@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed traces reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "traces", usageText)
 }
 
-const llmHelpText = `TRACES — Datadog APM trace search reference
+const usageText = `TRACES — Datadog APM trace search reference
 
 COMMANDS
   search     Search for traces/spans

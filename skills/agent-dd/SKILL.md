@@ -87,13 +87,13 @@ For full operator reference (wildcards, booleans, numeric comparisons, facets): 
 Per-domain details with examples and field descriptions (only load when you need specifics not covered above):
 
 ```bash
-agent-dd llm-help                 # top-level command overview
-agent-dd logs llm-help            # log query examples, sort options, compact vs full
-agent-dd monitors llm-help        # monitor statuses, muting best practices
-agent-dd metrics llm-help         # metric query syntax, aggregation details
-agent-dd traces llm-help          # trace search, duration units
-agent-dd incidents llm-help       # severity guide, lifecycle
-agent-dd slo llm-help             # error budgets, history interpretation
+agent-dd usage                    # top-level command overview
+agent-dd logs usage               # log query examples, sort options, compact vs full
+agent-dd monitors usage           # monitor statuses, muting best practices
+agent-dd metrics usage            # metric query syntax, aggregation details
+agent-dd traces usage             # trace search, duration units
+agent-dd incidents usage          # severity guide, lifecycle
+agent-dd slo usage                # error budgets, history interpretation
 ```
 
 ## Organization Setup

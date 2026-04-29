@@ -43,16 +43,16 @@ type TraceData struct {
 }
 
 type TraceAttributes struct {
-	TraceID    string  `json:"trace_id,omitempty"`
-	SpanID     string  `json:"span_id,omitempty"`
-	Service    string  `json:"service,omitempty"`
-	Name       string  `json:"name,omitempty"`
-	Resource   string  `json:"resource,omitempty"`
-	Type       string  `json:"type,omitempty"`
-	Start      int64   `json:"start,omitempty"`
-	Duration   float64 `json:"duration,omitempty"`
-	Error      int     `json:"error,omitempty"`
-	Status     string  `json:"status,omitempty"`
+	TraceID  string  `json:"trace_id,omitempty"`
+	SpanID   string  `json:"span_id,omitempty"`
+	Service  string  `json:"service,omitempty"`
+	Name     string  `json:"name,omitempty"`
+	Resource string  `json:"resource,omitempty"`
+	Type     string  `json:"type,omitempty"`
+	Start    int64   `json:"start,omitempty"`
+	Duration float64 `json:"duration,omitempty"`
+	Error    int     `json:"error,omitempty"`
+	Status   string  `json:"status,omitempty"`
 }
 
 func (c *Client) SearchTraces(ctx context.Context, query, service, from, to string, limit int) (*TraceSearchResponse, error) {

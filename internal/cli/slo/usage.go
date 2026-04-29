@@ -6,11 +6,11 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
-func registerLLMHelp(parent *cobra.Command) {
-	shared.RegisterLLMHelp(parent, "Detailed SLO reference for LLMs", llmHelpText)
+func registerUsage(parent *cobra.Command) {
+	shared.RegisterUsage(parent, "slo", usageText)
 }
 
-const llmHelpText = `SLO — Datadog Service Level Objectives reference
+const usageText = `SLO — Datadog Service Level Objectives reference
 
 COMMANDS
   list      List SLOs with optional filters
