@@ -61,15 +61,26 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 		filterQuery = strings.TrimSpace("service:" + service + " " + query)
 	}
 
-	body := map[string]any{
+	// /api/v2/spans/events/search requires the JSON:API envelope:
+	// {"data": {"type": "search_request", "attributes": {...}}}.
+	// A flat {filter:...} body is rejected with HTTP 400 and the
+	// message "document is missing required top-level members".
+	attrs := map[string]any{
 		"filter": map[string]any{
 			"query": filterQuery,
 			"from":  from,
 			"to":    to,
 		},
+		"sort": "-timestamp",
 	}
 	if limit > 0 {
-		body["page"] = map[string]any{"limit": limit}
+		attrs["page"] = map[string]any{"limit": limit}
+	}
+	body := map[string]any{
+		"data": map[string]any{
+			"type":       "search_request",
+			"attributes": attrs,
+		},
 	}
 
 	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", body)

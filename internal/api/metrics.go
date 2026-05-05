@@ -2,16 +2,26 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
-// MetricSeries represents a metric query result series.
+// MetricSeries represents a metric query result series as returned by
+// the v1 /query endpoint. The Datadog response uses `pointlist`, `scope`
+// and `tag_set` (not `points`/`tags`); previously mapping these to the
+// wrong JSON tags caused values to deserialize as nil.
 type MetricSeries struct {
-	Metric string      `json:"metric,omitempty"`
-	Tags   []string    `json:"tags,omitempty"`
-	Points [][]float64 `json:"points"`
+	Metric      string      `json:"metric,omitempty"`
+	DisplayName string      `json:"display_name,omitempty"`
+	Scope       string      `json:"scope,omitempty"`
+	TagSet      []string    `json:"tag_set,omitempty"`
+	Pointlist   [][]float64 `json:"pointlist,omitempty"`
+	Interval    int64       `json:"interval,omitempty"`
+	Length      int         `json:"length,omitempty"`
+	Aggr        string      `json:"aggr,omitempty"`
+	Start       float64     `json:"start,omitempty"`
+	End         float64     `json:"end,omitempty"`
 }
 
 // MetricMetadata represents metadata about a metric.
@@ -33,8 +43,8 @@ type MetricQueryResponse struct {
 func (c *Client) QueryMetrics(ctx context.Context, query string, from, to int64) (*MetricQueryResponse, error) {
 	params := url.Values{
 		"query": {query},
-		"from":  {fmt.Sprintf("%d", from)},
-		"to":    {fmt.Sprintf("%d", to)},
+		"from":  {strconv.FormatInt(from, 10)},
+		"to":    {strconv.FormatInt(to, 10)},
 	}
 	path := "/v1/query?" + params.Encode()
 	return doAndDecode[MetricQueryResponse](c, ctx, http.MethodGet, path, nil)
@@ -62,6 +72,6 @@ func (c *Client) ListMetrics(ctx context.Context, search string, tag string) (*M
 }
 
 func (c *Client) GetMetricMetadata(ctx context.Context, metricName string) (*MetricMetadata, error) {
-	path := fmt.Sprintf("/v1/metrics/%s", url.PathEscape(metricName))
+	path := "/v1/metrics/" + url.PathEscape(metricName)
 	return doAndDecode[MetricMetadata](c, ctx, http.MethodGet, path, nil)
 }

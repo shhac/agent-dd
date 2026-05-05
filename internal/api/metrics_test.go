@@ -32,13 +32,18 @@ func TestQueryMetrics(t *testing.T) {
 			t.Error("missing or wrong DD-API-KEY")
 		}
 
+		// Mirror the real /api/v1/query response shape: pointlist + tag_set + scope.
 		json.NewEncoder(w).Encode(map[string]any{
 			"status": "ok",
 			"series": []map[string]any{
 				{
-					"metric": "system.cpu.user",
-					"tags":   []string{"host:web01"},
-					"points": [][]float64{{1000, 42.5}, {1060, 43.1}},
+					"metric":    "system.cpu.user",
+					"scope":     "host:test-host",
+					"tag_set":   []string{"host:test-host"},
+					"pointlist": [][]float64{{1000, 42.5}, {1060, 43.1}},
+					"interval":  60,
+					"length":    2,
+					"aggr":      "avg",
 				},
 			},
 		})
@@ -56,11 +61,71 @@ func TestQueryMetrics(t *testing.T) {
 	if len(resp.Series) != 1 {
 		t.Fatalf("expected 1 series, got %d", len(resp.Series))
 	}
-	if resp.Series[0].Metric != "system.cpu.user" {
-		t.Errorf("expected metric=system.cpu.user, got %s", resp.Series[0].Metric)
+	s := resp.Series[0]
+	if s.Metric != "system.cpu.user" {
+		t.Errorf("expected metric=system.cpu.user, got %s", s.Metric)
 	}
-	if len(resp.Series[0].Points) != 2 {
-		t.Errorf("expected 2 points, got %d", len(resp.Series[0].Points))
+	if s.Scope != "host:test-host" {
+		t.Errorf("expected scope=host:test-host, got %q", s.Scope)
+	}
+	if len(s.TagSet) != 1 || s.TagSet[0] != "host:test-host" {
+		t.Errorf("expected tag_set=[host:test-host], got %v", s.TagSet)
+	}
+	if len(s.Pointlist) != 2 {
+		t.Fatalf("expected 2 points, got %d", len(s.Pointlist))
+	}
+	if s.Pointlist[0][0] != 1000 || s.Pointlist[0][1] != 42.5 {
+		t.Errorf("expected first point [1000,42.5], got %v", s.Pointlist[0])
+	}
+	if s.Aggr != "avg" {
+		t.Errorf("expected aggr=avg, got %s", s.Aggr)
+	}
+}
+
+// Empty series: a valid query with no matches should decode cleanly to an
+// empty slice — nil or panic here would break "no data" handling in the CLI.
+func TestQueryMetricsEmptySeries(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"series": []any{},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "k", "a")
+	resp, err := client.QueryMetrics(context.Background(), "avg:nope{*}", 0, 1)
+	if err != nil {
+		t.Fatalf("QueryMetrics empty: %v", err)
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status=ok, got %s", resp.Status)
+	}
+	if len(resp.Series) != 0 {
+		t.Errorf("expected empty series, got %d", len(resp.Series))
+	}
+}
+
+// status:"error" + an error message — the surface is currently best-effort
+// (we surface Status but don't fail), so this test pins the contract: the
+// caller can read Status and decide what to do.
+func TestQueryMetricsErrorStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "error",
+			"error":  "query parse error",
+			"series": []any{},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "k", "a")
+	resp, err := client.QueryMetrics(context.Background(), "garbage", 0, 1)
+	if err != nil {
+		t.Fatalf("QueryMetrics should not error on status:error response (HTTP 200): %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected status=error, got %s", resp.Status)
 	}
 }
 

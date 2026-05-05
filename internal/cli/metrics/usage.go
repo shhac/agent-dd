@@ -41,6 +41,24 @@ METRIC QUERY SYNTAX
   Grouping: by {tag} to split into separate series
 
 OUTPUT
-  Compact by default: {metric, tags, points: [[timestamp, value]...]}
-  Points are [unix_epoch_seconds, value] pairs
+  Compact by default: {metric, scope, tag_set, pointlist: [[timestamp, value]...]}
+  Field names match the v1 /query response. pointlist timestamps are in
+  milliseconds (Datadog's native format), values are floats. Series with
+  no data return an empty pointlist (not null).
+
+DISCOVERING METRIC NAMES
+  'metrics list' requires the metrics_read scope and may return 403 for
+  read-only API keys. If you cannot list metrics, common APM-emitted
+  patterns to try directly:
+
+    trace.<integration>.request.{hits,errors,duration,duration.95p}
+    trace.<integration>.server.{hits,errors,duration,duration.95p}
+    trace.<integration>.client.{hits,errors,duration,duration.95p}
+    trace.<integration>.query.{hits,errors,duration,duration.95p}
+
+  Where <integration> is e.g. http, grpc, mongo, redis, postgres, kafka,
+  sqs, fastify, express, gin, rails. Use .as_count() with sum: to convert
+  rate metrics to counts:
+
+    sum:trace.grpc.server.hits{env:prod} by {resource_name}.as_count()
 `

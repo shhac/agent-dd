@@ -2,13 +2,11 @@ package metrics
 
 import (
 	"context"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	"github.com/shhac/agent-dd/internal/output"
 )
 
 func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
@@ -37,9 +35,8 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			fromTime, toTime, err := shared.ParseTimeRange(from, to)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
+			fromTime, toTime, ok := shared.ParseTimeRangeOrWriteErr(from, to)
+			if !ok {
 				return nil
 			}
 
@@ -49,14 +46,20 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return err
 				}
 
-				// Compact output: just metric, tags, points
+				// Compact output uses Datadog's native field names so the
+				// shape matches the v1 /query response and downstream
+				// tooling familiar with it.
 				compact := make([]map[string]any, len(resp.Series))
 				for i, s := range resp.Series {
-					compact[i] = map[string]any{
-						"metric": s.Metric,
-						"tags":   s.Tags,
-						"points": s.Points,
+					row := map[string]any{
+						"metric":    s.Metric,
+						"scope":     s.Scope,
+						"pointlist": s.Pointlist,
 					}
+					if len(s.TagSet) > 0 {
+						row["tag_set"] = s.TagSet
+					}
+					compact[i] = row
 				}
 				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
 				return nil
