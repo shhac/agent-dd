@@ -53,9 +53,8 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			fromTime, toTime, err := shared.ParseTimeRange(from, to)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
+			fromTime, toTime, ok := shared.ParseTimeRangeOrWriteErr(from, to)
+			if !ok {
 				return nil
 			}
 
@@ -187,9 +186,8 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			fromTime, toTime, err := shared.ParseTimeRange(from, to)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
+			fromTime, toTime, ok := shared.ParseTimeRangeOrWriteErr(from, to)
+			if !ok {
 				return nil
 			}
 

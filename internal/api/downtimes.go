@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 type Downtime struct {
@@ -36,7 +36,7 @@ func (c *Client) CreateDowntime(ctx context.Context, monitorID int, end int64, r
 		"start": nil,
 	}
 	if end > 0 {
-		schedule["end"] = fmt.Sprintf("%d", end)
+		schedule["end"] = strconv.FormatInt(end, 10)
 	}
 
 	body := map[string]any{
@@ -44,23 +44,20 @@ func (c *Client) CreateDowntime(ctx context.Context, monitorID int, end int64, r
 			"type": "downtime",
 			"attributes": map[string]any{
 				"message":            reason,
-				"scope":              fmt.Sprintf("monitor_id:%d", monitorID),
+				"scope":              "monitor_id:" + strconv.Itoa(monitorID),
 				"monitor_identifier": map[string]any{"monitor_id": monitorID},
 				"schedule":           schedule,
 			},
 		},
 	}
 
-	type resp struct {
-		Data Downtime `json:"data"`
-	}
-	return doAndDecodeField[resp, Downtime](c, ctx, http.MethodPost, "/v2/downtime", body, func(r *resp) *Downtime { return &r.Data })
+	return doAndDecodeData[Downtime](c, ctx, http.MethodPost, "/v2/downtime", body)
 }
 
 // ListActiveDowntimes returns active downtimes for a specific monitor.
 func (c *Client) ListActiveDowntimes(ctx context.Context, monitorID int) ([]Downtime, error) {
 	params := url.Values{
-		"filter[monitor_id]": {fmt.Sprintf("%d", monitorID)},
+		"filter[monitor_id]": {strconv.Itoa(monitorID)},
 		"filter[status]":     {"active"},
 	}
 

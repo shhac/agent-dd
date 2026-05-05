@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 // Event represents a Datadog event.
@@ -26,8 +26,8 @@ type EventListResponse struct {
 
 func (c *Client) ListEvents(ctx context.Context, from, to int64, source string, tags []string) ([]Event, error) {
 	params := url.Values{
-		"start": {fmt.Sprintf("%d", from)},
-		"end":   {fmt.Sprintf("%d", to)},
+		"start": {strconv.FormatInt(from, 10)},
+		"end":   {strconv.FormatInt(to, 10)},
 	}
 	if source != "" {
 		params.Set("sources", source)
@@ -48,6 +48,6 @@ func (c *Client) GetEvent(ctx context.Context, id int64) (*Event, error) {
 	type eventResp struct {
 		Event Event `json:"event"`
 	}
-	path := fmt.Sprintf("/v1/events/%d", id)
+	path := "/v1/events/" + strconv.FormatInt(id, 10)
 	return doAndDecodeField[eventResp, Event](c, ctx, http.MethodGet, path, nil, func(r *eventResp) *Event { return &r.Event })
 }

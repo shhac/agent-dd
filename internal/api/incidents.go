@@ -57,10 +57,7 @@ func (r *IncidentListResponse) HasMore() bool {
 }
 
 func (c *Client) GetIncident(ctx context.Context, id string) (*Incident, error) {
-	type resp struct {
-		Data Incident `json:"data"`
-	}
-	return doAndDecodeField[resp, Incident](c, ctx, http.MethodGet, "/v2/incidents/"+url.PathEscape(id), nil, func(r *resp) *Incident { return &r.Data })
+	return doAndDecodeData[Incident](c, ctx, http.MethodGet, "/v2/incidents/"+url.PathEscape(id), nil)
 }
 
 func (c *Client) CreateIncident(ctx context.Context, title, severity, commanderHandle string) (*Incident, error) {
@@ -88,10 +85,7 @@ func (c *Client) CreateIncident(ctx context.Context, title, severity, commanderH
 		}
 	}
 
-	type resp struct {
-		Data Incident `json:"data"`
-	}
-	return doAndDecodeField[resp, Incident](c, ctx, http.MethodPost, "/v2/incidents", map[string]any{"data": data}, func(r *resp) *Incident { return &r.Data })
+	return doAndDecodeData[Incident](c, ctx, http.MethodPost, "/v2/incidents", map[string]any{"data": data})
 }
 
 func (c *Client) UpdateIncident(ctx context.Context, id string, status, severity string) (*Incident, error) {
@@ -116,8 +110,5 @@ func (c *Client) UpdateIncident(ctx context.Context, id string, status, severity
 		},
 	}
 
-	type resp struct {
-		Data Incident `json:"data"`
-	}
-	return doAndDecodeField[resp, Incident](c, ctx, http.MethodPatch, "/v2/incidents/"+url.PathEscape(id), body, func(r *resp) *Incident { return &r.Data })
+	return doAndDecodeData[Incident](c, ctx, http.MethodPatch, "/v2/incidents/"+url.PathEscape(id), body)
 }

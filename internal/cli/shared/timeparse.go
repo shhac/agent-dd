@@ -1,11 +1,13 @@
 package shared
 
 import (
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
+	"github.com/shhac/agent-dd/internal/output"
 )
 
 // ParseTime parses relative (now-15m), RFC3339, or unix epoch time strings.
@@ -34,6 +36,14 @@ func ParseTime(s string) (time.Time, error) {
 		"invalid time format %q — use relative (now-15m), RFC3339 (2024-01-15T10:00:00Z), or unix epoch", s)
 }
 
+var relativeTimeUnits = map[byte]time.Duration{
+	's': time.Second,
+	'm': time.Minute,
+	'h': time.Hour,
+	'd': 24 * time.Hour,
+	'w': 7 * 24 * time.Hour,
+}
+
 func parseRelativeTime(s string) (time.Time, error) {
 	now := time.Now()
 	rest := s[3:] // strip "now"
@@ -58,30 +68,18 @@ func parseRelativeTime(s string) (time.Time, error) {
 	}
 
 	unit := rest[len(rest)-1]
-	numStr := rest[:len(rest)-1]
-	num, err := strconv.Atoi(numStr)
-	if err != nil {
-		return time.Time{}, agenterrors.Newf(agenterrors.FixableByAgent, "invalid relative time %q", s)
-	}
-
-	var duration time.Duration
-	switch unit {
-	case 's':
-		duration = time.Duration(num) * time.Second
-	case 'm':
-		duration = time.Duration(num) * time.Minute
-	case 'h':
-		duration = time.Duration(num) * time.Hour
-	case 'd':
-		duration = time.Duration(num) * 24 * time.Hour
-	case 'w':
-		duration = time.Duration(num) * 7 * 24 * time.Hour
-	default:
+	unitDur, ok := relativeTimeUnits[unit]
+	if !ok {
 		return time.Time{}, agenterrors.Newf(agenterrors.FixableByAgent,
 			"invalid time unit %q in %q — use s, m, h, d, or w", string(unit), s)
 	}
 
-	return now.Add(sign * duration), nil
+	num, err := strconv.Atoi(rest[:len(rest)-1])
+	if err != nil {
+		return time.Time{}, agenterrors.Newf(agenterrors.FixableByAgent, "invalid relative time %q", s)
+	}
+
+	return now.Add(sign * time.Duration(num) * unitDur), nil
 }
 
 // ParseTimeDefaultFrom returns the parsed --from time, defaulting to 1 hour ago.
@@ -111,4 +109,16 @@ func ParseTimeRange(from, to string) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, err
 	}
 	return fromTime, toTime, nil
+}
+
+// ParseTimeRangeOrWriteErr is the cobra-RunE convenience wrapper around
+// ParseTimeRange: on error it writes to stderr and returns ok=false so the
+// caller can `return nil` for the standard "swallow" behaviour.
+func ParseTimeRangeOrWriteErr(from, to string) (fromTime, toTime time.Time, ok bool) {
+	fromTime, toTime, err := ParseTimeRange(from, to)
+	if err != nil {
+		output.WriteError(os.Stderr, err)
+		return time.Time{}, time.Time{}, false
+	}
+	return fromTime, toTime, true
 }

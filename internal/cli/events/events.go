@@ -34,9 +34,8 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 
-			fromTime, toTime, err := shared.ParseTimeRange(from, to)
-			if err != nil {
-				output.WriteError(os.Stderr, err)
+			fromTime, toTime, ok := shared.ParseTimeRangeOrWriteErr(from, to)
+			if !ok {
 				return nil
 			}
 
