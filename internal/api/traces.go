@@ -2,28 +2,17 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-// SpanError holds error details returned by the v2 spans events API.
-// The legacy v1 APM API used a plain int flag (0/1); the /v2/spans/events/search
-// endpoint returns a nested object instead.
+// SpanError holds error details returned by the v2 spans events API in the
+// `error` attribute. v1's int flag form does not appear on this endpoint.
 type SpanError struct {
 	Message string `json:"message,omitempty"`
 	Type    string `json:"type,omitempty"`
 	Stack   string `json:"stack,omitempty"`
-}
-
-func (e *SpanError) UnmarshalJSON(data []byte) error {
-	s := string(data)
-	if s == "null" || s == "0" || s == "1" {
-		return nil
-	}
-	type plain SpanError
-	return json.Unmarshal(data, (*plain)(e))
 }
 
 // APMService represents an APM service.

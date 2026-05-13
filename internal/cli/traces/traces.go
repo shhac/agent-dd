@@ -64,9 +64,13 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"service":   d.Attributes.Service,
 						"operation": d.Attributes.OperationName,
 						"resource":  d.Attributes.ResourceName,
+						"env":       d.Attributes.Env,
 						"status":    d.Attributes.Status,
 						"start":     d.Attributes.StartTimestamp,
 						"end":       d.Attributes.EndTimestamp,
+					}
+					if len(d.Attributes.Tags) > 0 {
+						spans[i]["tags"] = d.Attributes.Tags
 					}
 					if d.Attributes.Error != nil {
 						spans[i]["error"] = d.Attributes.Error
