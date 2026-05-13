@@ -61,11 +61,12 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				spans := make([]map[string]any, len(resp.Data))
 				for i, d := range resp.Data {
 					spans[i] = map[string]any{
-						"service":  d.Attributes.Service,
-						"name":     d.Attributes.Name,
-						"resource": d.Attributes.Resource,
-						"duration": d.Attributes.Duration,
-						"status":   d.Attributes.Status,
+						"service":   d.Attributes.Service,
+						"operation": d.Attributes.OperationName,
+						"resource":  d.Attributes.ResourceName,
+						"status":    d.Attributes.Status,
+						"start":     d.Attributes.StartTimestamp,
+						"end":       d.Attributes.EndTimestamp,
 					}
 					if d.Attributes.Error != nil {
 						spans[i]["error"] = d.Attributes.Error
