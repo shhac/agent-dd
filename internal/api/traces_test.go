@@ -146,6 +146,49 @@ func TestSearchTracesCursor(t *testing.T) {
 	}
 }
 
+// Regression: the v2 spans events API returns error as an object, not a legacy
+// int flag. A plain `int` field caused an unmarshal panic on real error spans.
+func TestSearchTracesErrorObject(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{
+					"type": "spans",
+					"attributes": map[string]any{
+						"trace_id": "trace-id-err",
+						"service":  "bookingservice",
+						"status":   "error",
+						"error": map[string]any{
+							"message": "connection refused",
+							"type":    "NetworkError",
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	resp, err := client.SearchTraces(context.Background(), "status:error", "bookingservice", "now-1h", "now", 10)
+	if err != nil {
+		t.Fatalf("SearchTraces failed: %v", err)
+	}
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(resp.Data))
+	}
+	e := resp.Data[0].Attributes.Error
+	if e == nil {
+		t.Fatal("expected non-nil error")
+	}
+	if e.Message != "connection refused" {
+		t.Errorf("expected message 'connection refused', got %q", e.Message)
+	}
+	if e.Type != "NetworkError" {
+		t.Errorf("expected type 'NetworkError', got %q", e.Type)
+	}
+}
+
 func TestListServices(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

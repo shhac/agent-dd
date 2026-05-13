@@ -66,7 +66,9 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"resource": d.Attributes.Resource,
 						"duration": d.Attributes.Duration,
 						"status":   d.Attributes.Status,
-						"error":    d.Attributes.Error,
+					}
+					if d.Attributes.Error != nil {
+						spans[i]["error"] = d.Attributes.Error
 					}
 				}
 				shared.WritePaginatedList(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), g.Format)
