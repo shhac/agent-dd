@@ -7,18 +7,12 @@ import (
 	"strings"
 )
 
-// Trace span from APM.
-type TraceSpan struct {
-	TraceID  string  `json:"trace_id"`
-	SpanID   string  `json:"span_id"`
-	Service  string  `json:"service,omitempty"`
-	Name     string  `json:"name,omitempty"`
-	Resource string  `json:"resource,omitempty"`
-	Type     string  `json:"type,omitempty"`
-	Start    int64   `json:"start,omitempty"`
-	Duration float64 `json:"duration,omitempty"`
-	Error    int     `json:"error,omitempty"`
-	Status   string  `json:"status,omitempty"`
+// SpanError holds error details returned by the v2 spans events API in the
+// `error` attribute. v1's int flag form does not appear on this endpoint.
+type SpanError struct {
+	Message string `json:"message,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Stack   string `json:"stack,omitempty"`
 }
 
 // APMService represents an APM service.
@@ -43,16 +37,18 @@ type TraceData struct {
 }
 
 type TraceAttributes struct {
-	TraceID  string  `json:"trace_id,omitempty"`
-	SpanID   string  `json:"span_id,omitempty"`
-	Service  string  `json:"service,omitempty"`
-	Name     string  `json:"name,omitempty"`
-	Resource string  `json:"resource,omitempty"`
-	Type     string  `json:"type,omitempty"`
-	Start    int64   `json:"start,omitempty"`
-	Duration float64 `json:"duration,omitempty"`
-	Error    int     `json:"error,omitempty"`
-	Status   string  `json:"status,omitempty"`
+	TraceID        string     `json:"trace_id,omitempty"`
+	SpanID         string     `json:"span_id,omitempty"`
+	Service        string     `json:"service,omitempty"`
+	OperationName  string     `json:"operation_name,omitempty"`
+	ResourceName   string     `json:"resource_name,omitempty"`
+	Type           string     `json:"type,omitempty"`
+	StartTimestamp string     `json:"start_timestamp,omitempty"`
+	EndTimestamp   string     `json:"end_timestamp,omitempty"`
+	Env            string     `json:"env,omitempty"`
+	Tags           []string   `json:"tags,omitempty"`
+	Error          *SpanError `json:"error,omitempty"`
+	Status         string     `json:"status,omitempty"`
 }
 
 func (c *Client) SearchTraces(ctx context.Context, query, service, from, to string, limit int) (*TraceSearchResponse, error) {

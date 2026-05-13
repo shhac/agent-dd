@@ -146,6 +146,76 @@ func TestSearchTracesCursor(t *testing.T) {
 	}
 }
 
+// Regression: the v2 spans events API returns error as an object. A plain
+// `int` field caused an unmarshal panic on real error spans. The fixture
+// also exercises the v2 attribute renames (operation_name, resource_name,
+// start_timestamp, end_timestamp) plus env/tags so a Datadog rename of any
+// of those decodes visibly fails instead of silently zero-ing.
+func TestSearchTracesErrorObject(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{
+					"type": "spans",
+					"attributes": map[string]any{
+						"trace_id":        "trace-id-err",
+						"service":         "bookingservice",
+						"operation_name":  "POST /book",
+						"resource_name":   "POST /api/v1/bookings",
+						"start_timestamp": "2026-01-15T09:00:00Z",
+						"end_timestamp":   "2026-01-15T09:00:01Z",
+						"env":             "prod",
+						"tags":            []string{"team:checkout", "region:us-east-1"},
+						"status":          "error",
+						"error": map[string]any{
+							"message": "connection refused",
+							"type":    "NetworkError",
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	resp, err := client.SearchTraces(context.Background(), "status:error", "bookingservice", "now-1h", "now", 10)
+	if err != nil {
+		t.Fatalf("SearchTraces failed: %v", err)
+	}
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(resp.Data))
+	}
+	attrs := resp.Data[0].Attributes
+	if attrs.OperationName != "POST /book" {
+		t.Errorf("OperationName = %q, want %q", attrs.OperationName, "POST /book")
+	}
+	if attrs.ResourceName != "POST /api/v1/bookings" {
+		t.Errorf("ResourceName = %q, want %q", attrs.ResourceName, "POST /api/v1/bookings")
+	}
+	if attrs.StartTimestamp != "2026-01-15T09:00:00Z" {
+		t.Errorf("StartTimestamp = %q", attrs.StartTimestamp)
+	}
+	if attrs.EndTimestamp != "2026-01-15T09:00:01Z" {
+		t.Errorf("EndTimestamp = %q", attrs.EndTimestamp)
+	}
+	if attrs.Env != "prod" {
+		t.Errorf("Env = %q", attrs.Env)
+	}
+	if len(attrs.Tags) != 2 || attrs.Tags[0] != "team:checkout" {
+		t.Errorf("Tags = %v", attrs.Tags)
+	}
+	if attrs.Error == nil {
+		t.Fatal("expected non-nil error")
+	}
+	if attrs.Error.Message != "connection refused" {
+		t.Errorf("Error.Message = %q", attrs.Error.Message)
+	}
+	if attrs.Error.Type != "NetworkError" {
+		t.Errorf("Error.Type = %q", attrs.Error.Type)
+	}
+}
+
 func TestListServices(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
