@@ -117,7 +117,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				}
 				var meta map[string]any
 				if resp.Counts != nil {
-					meta = map[string]any{"@counts": resp.Counts}
+					meta = map[string]any{output.MetaKeyCounts: resp.Counts}
 				}
 				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactMonitors(resp.Monitors)), nil, meta, g.Format)
 				return nil

@@ -105,7 +105,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 				var meta map[string]any
 				if len(resp.Data) > 0 {
-					meta = map[string]any{"@skipped": compactLogSkippedFields}
+					meta = map[string]any{output.MetaKeySkipped: compactLogSkippedFields}
 				}
 				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactLogs(resp.Data)), pagination, meta, g.Format)
 				return nil

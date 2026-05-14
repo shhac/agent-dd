@@ -36,20 +36,11 @@ func handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	statusCounts := make([]map[string]any, 0, len(statusBucket))
-	for name, c := range statusBucket {
-		statusCounts = append(statusCounts, map[string]any{"name": name, "count": c})
-	}
-	mutedCounts := make([]map[string]any, 0, len(mutedBucket))
-	for name, c := range mutedBucket {
-		mutedCounts = append(mutedCounts, map[string]any{"name": name, "count": c})
-	}
-
 	writeJSON(w, 200, map[string]any{
 		"monitors": results,
 		"counts": map[string]any{
-			"status": statusCounts,
-			"muted":  mutedCounts,
+			"status": bucketCounts(statusBucket),
+			"muted":  bucketCounts(mutedBucket),
 		},
 		"metadata": map[string]any{
 			"total":         len(results),
@@ -59,6 +50,18 @@ func handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
 			"total_results": len(results),
 		},
 	})
+}
+
+// bucketCounts converts a tally map into Datadog's [{name, count}] envelope
+// shape used inside `counts.{status,muted,tag,type,...}` on the monitor
+// search response. Extracted so additional buckets (priority, type) can be
+// added without duplicating the projection loop.
+func bucketCounts(b map[string]int) []map[string]any {
+	out := make([]map[string]any, 0, len(b))
+	for name, count := range b {
+		out = append(out, map[string]any{"name": name, "count": count})
+	}
+	return out
 }
 
 func handleMonitorByID(w http.ResponseWriter, r *http.Request) {

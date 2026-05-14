@@ -127,13 +127,24 @@ type Pagination struct {
 	NextCursor string `json:"next_cursor,omitempty"`
 }
 
+// Meta-row keys. NDJSON output mixes data rows (full per-item objects)
+// with meta rows (single-key objects keyed by one of these `@`-prefixed
+// names). Consumers filter on the key to separate the two streams. New
+// meta keys should be added here, not as inline string literals at call
+// sites, so the convention stays codified.
+const (
+	MetaKeyPagination = "@pagination"
+	MetaKeyCounts     = "@counts"
+	MetaKeySkipped    = "@skipped"
+)
+
 func (n *NDJSONWriter) WritePagination(p *Pagination) error {
-	return n.enc.Encode(map[string]any{"@pagination": p})
+	return n.enc.Encode(map[string]any{MetaKeyPagination: p})
 }
 
 // WriteMetaLine emits a single NDJSON line keyed by `key` with the given
-// value. Use the `@`-prefix convention for non-data rows (rollups, counts,
-// truncation notices, etc) so consumers can filter them from the data stream.
+// value. `key` should be one of the MetaKey* constants, or at least follow
+// the `@`-prefix convention so consumers can filter it from the data stream.
 func (n *NDJSONWriter) WriteMetaLine(key string, value any) error {
 	return n.enc.Encode(map[string]any{key: value})
 }

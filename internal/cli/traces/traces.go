@@ -34,6 +34,48 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 // meta-line so callers know what's available behind `--full`.
 var compactSpanSkippedFields = []string{"attributes", "custom", "single_span"}
 
+// toCompactSpans projects search results into per-row maps. Identifiers
+// and triage context are always included; the free-form `attributes` and
+// `custom` blobs (plus the rarely-useful `single_span`) are gated behind
+// `full`. Mirrors toCompactLogs in internal/cli/logs/logs.go.
+func toCompactSpans(data []api.TraceData, full bool) []map[string]any {
+	spans := make([]map[string]any, len(data))
+	for i, d := range data {
+		row := map[string]any{
+			"trace_id":      d.Attributes.TraceID,
+			"span_id":       d.Attributes.SpanID,
+			"parent_id":     d.Attributes.ParentID,
+			"service":       d.Attributes.Service,
+			"operation":     d.Attributes.OperationName,
+			"resource":      d.Attributes.ResourceName,
+			"resource_hash": d.Attributes.ResourceHash,
+			"type":          d.Attributes.Type,
+			"host":          d.Attributes.Host,
+			"env":           d.Attributes.Env,
+			"status":        d.Attributes.Status,
+			"start":         d.Attributes.StartTimestamp,
+			"end":           d.Attributes.EndTimestamp,
+		}
+		if len(d.Attributes.Tags) > 0 {
+			row["tags"] = d.Attributes.Tags
+		}
+		if d.Attributes.Error != nil {
+			row["error"] = d.Attributes.Error
+		}
+		if full {
+			row["single_span"] = d.Attributes.SingleSpan
+			if len(d.Attributes.Attributes) > 0 {
+				row["attributes"] = d.Attributes.Attributes
+			}
+			if len(d.Attributes.Custom) > 0 {
+				row["custom"] = d.Attributes.Custom
+			}
+		}
+		spans[i] = row
+	}
+	return spans
+}
+
 func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	var query, service, from, to, cursor string
 	var limit int
@@ -67,44 +109,11 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return err
 				}
 
-				spans := make([]map[string]any, len(resp.Data))
-				for i, d := range resp.Data {
-					row := map[string]any{
-						"trace_id":      d.Attributes.TraceID,
-						"span_id":       d.Attributes.SpanID,
-						"parent_id":     d.Attributes.ParentID,
-						"service":       d.Attributes.Service,
-						"operation":     d.Attributes.OperationName,
-						"resource":      d.Attributes.ResourceName,
-						"resource_hash": d.Attributes.ResourceHash,
-						"type":          d.Attributes.Type,
-						"host":          d.Attributes.Host,
-						"env":           d.Attributes.Env,
-						"status":        d.Attributes.Status,
-						"start":         d.Attributes.StartTimestamp,
-						"end":           d.Attributes.EndTimestamp,
-					}
-					if len(d.Attributes.Tags) > 0 {
-						row["tags"] = d.Attributes.Tags
-					}
-					if d.Attributes.Error != nil {
-						row["error"] = d.Attributes.Error
-					}
-					if full {
-						row["single_span"] = d.Attributes.SingleSpan
-						if len(d.Attributes.Attributes) > 0 {
-							row["attributes"] = d.Attributes.Attributes
-						}
-						if len(d.Attributes.Custom) > 0 {
-							row["custom"] = d.Attributes.Custom
-						}
-					}
-					spans[i] = row
-				}
+				spans := toCompactSpans(resp.Data, full)
 
 				var meta map[string]any
-				if !full && len(resp.Data) > 0 {
-					meta = map[string]any{"@skipped": compactSpanSkippedFields}
+				if !full && len(spans) > 0 {
+					meta = map[string]any{output.MetaKeySkipped: compactSpanSkippedFields}
 				}
 				shared.WritePaginatedListWithMeta(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), meta, g.Format)
 				return nil
