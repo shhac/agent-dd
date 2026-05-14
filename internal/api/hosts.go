@@ -46,6 +46,10 @@ func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*
 	return doAndDecode[HostListResponse](c, ctx, http.MethodGet, buildPath("/v1/hosts", params), nil)
 }
 
+// GetHost returns the host whose `name` exactly matches `hostname`. The DD
+// /v1/hosts endpoint's `filter` is a substring/query search, so a prefix
+// like "web" could return "web-01", "web-02", etc; without an exact-match
+// guard we'd silently return whichever host came first in the response.
 func (c *Client) GetHost(ctx context.Context, hostname string) (*Host, error) {
 	params := url.Values{"filter": {hostname}}
 	path := "/v1/hosts?" + params.Encode()
@@ -54,22 +58,27 @@ func (c *Client) GetHost(ctx context.Context, hostname string) (*Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.HostList) == 0 {
-		return nil, agenterrors.Newf(agenterrors.FixableByAgent, "host %q not found", hostname).
-			WithHint("Check the hostname — use 'agent-dd hosts list' to see available hosts")
+	for i := range resp.HostList {
+		if resp.HostList[i].Name == hostname {
+			return &resp.HostList[i], nil
+		}
 	}
-	return &resp.HostList[0], nil
+	return nil, agenterrors.Newf(agenterrors.FixableByAgent, "host %q not found", hostname).
+		WithHint("Check the hostname — use 'agent-dd hosts list' to see available hosts")
 }
 
-func (c *Client) MuteHost(ctx context.Context, hostname string, end int64, reason string) error {
-	body := map[string]any{
-		"hostname": hostname,
-	}
+// MuteHost mutes a host. `override=true` is required by Datadog to re-mute
+// a host that is already muted; without it the API returns 400.
+func (c *Client) MuteHost(ctx context.Context, hostname string, end int64, reason string, override bool) error {
+	body := map[string]any{}
 	if end > 0 {
 		body["end"] = end
 	}
 	if reason != "" {
 		body["message"] = reason
+	}
+	if override {
+		body["override"] = true
 	}
 
 	path := fmt.Sprintf("/v1/host/%s/mute", url.PathEscape(hostname))

@@ -81,6 +81,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	var end, reason string
+	var override bool
 
 	cmd := &cobra.Command{
 		Use:   "mute <hostname>",
@@ -101,7 +102,7 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			}
 
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				if err := client.MuteHost(ctx, hostname, endEpoch, reason); err != nil {
+				if err := client.MuteHost(ctx, hostname, endEpoch, reason, override); err != nil {
 					return err
 				}
 				shared.WriteItem(map[string]any{
@@ -114,5 +115,6 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	}
 	cmd.Flags().StringVar(&end, "end", "", "Mute end time")
 	cmd.Flags().StringVar(&reason, "reason", "", "Reason for muting")
+	cmd.Flags().BoolVar(&override, "override", false, "Override an existing mute (re-mute a host already muted)")
 	parent.AddCommand(cmd)
 }

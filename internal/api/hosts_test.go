@@ -28,8 +28,10 @@ func TestMuteHost(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("failed to decode request body: %v", err)
 		}
-		if body["hostname"] != "web-01.prod" {
-			t.Errorf("expected hostname=web-01.prod, got %v", body["hostname"])
+		// hostname goes in the URL path, not the body — DD rejects an
+		// unexpected `hostname` field.
+		if _, hasHostname := body["hostname"]; hasHostname {
+			t.Errorf("hostname must not be in body, got %v", body["hostname"])
 		}
 		// JSON numbers decode as float64
 		if end, ok := body["end"].(float64); !ok || int64(end) != 1700000000 {
@@ -38,15 +40,36 @@ func TestMuteHost(t *testing.T) {
 		if body["message"] != "scheduled maintenance" {
 			t.Errorf("expected message=scheduled maintenance, got %v", body["message"])
 		}
+		if _, hasOverride := body["override"]; hasOverride {
+			t.Errorf("override should be omitted when false, got %v", body["override"])
+		}
 
 		json.NewEncoder(w).Encode(map[string]any{"action": "muted", "hostname": "web-01.prod"})
 	}))
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "test-key", "test-app")
-	err := client.MuteHost(context.Background(), "web-01.prod", 1700000000, "scheduled maintenance")
+	err := client.MuteHost(context.Background(), "web-01.prod", 1700000000, "scheduled maintenance", false)
 	if err != nil {
 		t.Fatalf("MuteHost failed: %v", err)
+	}
+}
+
+// override=true is required by DD to re-mute a host that is already muted.
+func TestMuteHostOverride(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body["override"] != true {
+			t.Errorf("expected override=true, got %v", body["override"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"action": "muted"})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	if err := client.MuteHost(context.Background(), "web-01.prod", 0, "", true); err != nil {
+		t.Fatalf("MuteHost with override: %v", err)
 	}
 }
 
@@ -115,6 +138,39 @@ func TestListHostsCombinesFilterAndTags(t *testing.T) {
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
 	if _, err := client.ListHosts(context.Background(), "web", []string{"env:prod", "team:checkout"}); err != nil {
 		t.Fatalf("ListHosts: %v", err)
+	}
+}
+
+// Regression: /v1/hosts `filter` is a substring/query search. Without an
+// exact-match guard, GetHost("web") could silently return "web-01" because
+// it's the first match. The guard rescans the response for an exact match.
+func TestGetHostExactMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"host_list": []map[string]any{
+				{"name": "web-01.prod", "up": true, "is_muted": false},
+				{"name": "web-02.prod", "up": true, "is_muted": false},
+				{"name": "web", "up": true, "is_muted": true},
+			},
+			"total_returned": 3,
+			"total_matching": 3,
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	host, err := client.GetHost(context.Background(), "web")
+	if err != nil {
+		t.Fatalf("GetHost: %v", err)
+	}
+	if host.Name != "web" {
+		t.Errorf("GetHost picked %q, want exact-match %q", host.Name, "web")
+	}
+
+	// Substring-only match must not be returned silently.
+	_, err = client.GetHost(context.Background(), "web-05")
+	if err == nil {
+		t.Error("expected error for hostname with no exact match")
 	}
 }
 
