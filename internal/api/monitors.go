@@ -8,26 +8,38 @@ import (
 	"net/url"
 )
 
-// Monitor represents a Datadog monitor.
+// Monitor represents a Datadog monitor. `Muted`, `LastTriggeredTs`, and
+// `Priority` are present on both the v1 monitor object and the search-result
+// monitor object — they're directly useful for triage and were previously
+// decoded as zero values because they were missing from the struct.
 type Monitor struct {
-	ID       int              `json:"id"`
-	Name     string           `json:"name"`
-	Type     string           `json:"type"`
-	Query    string           `json:"query,omitempty"`
-	Message  string           `json:"message,omitempty"`
-	Tags     []string         `json:"tags,omitempty"`
-	Status   string           `json:"overall_state,omitempty"`
-	Created  string           `json:"created,omitempty"`
-	Modified string           `json:"modified,omitempty"`
-	Options  *json.RawMessage `json:"options,omitempty"`
+	ID              int              `json:"id"`
+	Name            string           `json:"name"`
+	Type            string           `json:"type"`
+	Query           string           `json:"query,omitempty"`
+	Message         string           `json:"message,omitempty"`
+	Tags            []string         `json:"tags,omitempty"`
+	Status          string           `json:"overall_state,omitempty"`
+	Muted           bool             `json:"muted,omitempty"`
+	Priority        int              `json:"priority,omitempty"`
+	LastTriggeredTs int64            `json:"last_triggered_ts,omitempty"`
+	Created         string           `json:"created,omitempty"`
+	Modified        string           `json:"modified,omitempty"`
+	Options         *json.RawMessage `json:"options,omitempty"`
 }
 
-// MonitorCompact is the token-efficient view of a monitor.
+// MonitorCompact is the token-efficient view of a monitor. Muted and
+// LastTriggeredTs are included because they're high-signal for triage:
+// "is this firing right now / when did it last fire" answers the most
+// common follow-up question in an alert-triage loop.
 type MonitorCompact struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Type   string `json:"type"`
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	Status          string `json:"status"`
+	Type            string `json:"type"`
+	Muted           bool   `json:"muted,omitempty"`
+	Priority        int    `json:"priority,omitempty"`
+	LastTriggeredTs int64  `json:"last_triggered_ts,omitempty"`
 }
 
 // MonitorSearchResponse is the /v1/monitor/search envelope. `counts` summarises

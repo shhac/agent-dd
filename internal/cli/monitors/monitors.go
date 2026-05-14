@@ -15,10 +15,13 @@ func toCompactMonitors(monitors []api.Monitor) []api.MonitorCompact {
 	compact := make([]api.MonitorCompact, len(monitors))
 	for i, m := range monitors {
 		compact[i] = api.MonitorCompact{
-			ID:     m.ID,
-			Name:   m.Name,
-			Status: m.Status,
-			Type:   m.Type,
+			ID:              m.ID,
+			Name:            m.Name,
+			Status:          m.Status,
+			Type:            m.Type,
+			Muted:           m.Muted,
+			Priority:        m.Priority,
+			LastTriggeredTs: m.LastTriggeredTs,
 		}
 	}
 	return compact
