@@ -3,6 +3,7 @@ package traces
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,6 +22,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 
 	registerSearch(tr, globals)
 	registerServices(tr, globals)
+	registerPercentile(tr, globals)
 	registerUsage(tr)
 
 	root.AddCommand(tr)
@@ -86,6 +88,84 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&from, "from", "", "Start time (default: now-1h)")
 	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Max results")
+	parent.AddCommand(cmd)
+}
+
+func registerPercentile(parent *cobra.Command, globals func() *shared.GlobalFlags) {
+	var query, service, resource, from, to, percentile string
+
+	cmd := &cobra.Command{
+		Use:   "percentile",
+		Short: "Compute span duration percentiles via aggregate API",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g := globals()
+
+			// Build filter query from flags.
+			parts := []string{}
+			if service != "" {
+				parts = append(parts, "service:"+service)
+			}
+			if resource != "" {
+				parts = append(parts, "resource_name:\""+resource+"\"")
+			}
+			if query != "" {
+				parts = append(parts, query)
+			}
+			filterQuery := "*"
+			if len(parts) > 0 {
+				filterQuery = strings.Join(parts, " ")
+			}
+
+			agg := percentile
+			if agg == "" {
+				agg = "pc95"
+			}
+
+			fromTime, toTime, ok := shared.ParseTimeRangeOrWriteErr(from, to)
+			if !ok {
+				return nil
+			}
+
+			groupBy := []string{"service", "resource_name"}
+
+			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+				buckets, err := client.AggregateSpans(
+					ctx,
+					filterQuery,
+					fromTime.Format(time.RFC3339),
+					toTime.Format(time.RFC3339),
+					agg,
+					"@duration",
+					groupBy,
+				)
+				if err != nil {
+					return err
+				}
+
+				rows := make([]map[string]any, 0, len(buckets))
+				for _, b := range buckets {
+					// @duration is in nanoseconds — convert to ms.
+					for _, v := range b.Compute {
+						row := map[string]any{
+							"service":       b.By["service"],
+							"resource_name": b.By["resource_name"],
+							"percentile":    agg,
+							"value_ms":      v / 1e6,
+						}
+						rows = append(rows, row)
+					}
+				}
+				shared.WritePaginatedList(shared.ToAnySlice(rows), nil, g.Format)
+				return nil
+			})
+		},
+	}
+	cmd.Flags().StringVar(&query, "query", "", "Additional span search filter")
+	cmd.Flags().StringVar(&service, "service", "", "Filter by service")
+	cmd.Flags().StringVar(&resource, "resource", "", "Filter by resource name")
+	cmd.Flags().StringVar(&from, "from", "", "Start time (default: now-1h)")
+	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
+	cmd.Flags().StringVar(&percentile, "percentile", "pc95", "Aggregation: pc75, pc90, pc95, pc98, pc99")
 	parent.AddCommand(cmd)
 }
 

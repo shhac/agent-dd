@@ -82,6 +82,74 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", body)
 }
 
+// SpanAggregateBucket is a single result bucket from the aggregate endpoint.
+type SpanAggregateBucket struct {
+	By      map[string]string  `json:"by"`
+	Compute map[string]float64 `json:"compute"`
+}
+
+type spanAggregateData struct {
+	Attributes struct {
+		By      map[string]string  `json:"by"`
+		Compute map[string]float64 `json:"compute"`
+	} `json:"attributes"`
+}
+
+type spanAggregateResponse struct {
+	Data []spanAggregateData `json:"data"`
+}
+
+// AggregateSpans calls POST /v2/spans/analytics/aggregate. aggregation must be
+// one of: count, sum, min, max, pc75, pc90, pc95, pc98, pc99.
+func (c *Client) AggregateSpans(ctx context.Context, query, from, to, aggregation, metric string, groupBy []string) ([]SpanAggregateBucket, error) {
+	compute := map[string]any{
+		"aggregation": aggregation,
+		"type":        "total",
+	}
+	if metric != "" {
+		compute["metric"] = metric
+	}
+
+	groups := make([]map[string]any, len(groupBy))
+	for i, facet := range groupBy {
+		groups[i] = map[string]any{
+			"facet": facet,
+			"limit": 100,
+			"sort": map[string]any{
+				"type":        "measure",
+				"order":       "desc",
+				"aggregation": aggregation,
+				"metric":      metric,
+			},
+		}
+	}
+
+	body := map[string]any{
+		"data": map[string]any{
+			"type": "aggregate_request",
+			"attributes": map[string]any{
+				"filter":   map[string]any{"query": query, "from": from, "to": to},
+				"compute":  []any{compute},
+				"group_by": groups,
+			},
+		},
+	}
+
+	resp, err := doAndDecode[spanAggregateResponse](c, ctx, http.MethodPost, "/v2/spans/analytics/aggregate", body)
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := make([]SpanAggregateBucket, len(resp.Data))
+	for i, d := range resp.Data {
+		buckets[i] = SpanAggregateBucket{
+			By:      d.Attributes.By,
+			Compute: d.Attributes.Compute,
+		}
+	}
+	return buckets, nil
+}
+
 type serviceListResponse struct {
 	Data struct {
 		Attributes struct {
