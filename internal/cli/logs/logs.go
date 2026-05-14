@@ -12,15 +12,21 @@ import (
 	"github.com/shhac/agent-dd/internal/output"
 )
 
-func toCompactLogs(data []api.LogData) []api.LogEntryCompact {
-	compact := make([]api.LogEntryCompact, len(data))
+func toCompactLogs(data []api.LogData) []map[string]any {
+	compact := make([]map[string]any, len(data))
 	for i, d := range data {
-		compact[i] = api.LogEntryCompact{
-			Timestamp: d.Attributes.Timestamp,
-			Service:   d.Attributes.Service,
-			Status:    d.Attributes.Status,
-			Message:   d.Attributes.Message,
+		row := map[string]any{
+			"id":        d.ID,
+			"timestamp": d.Attributes.Timestamp,
+			"service":   d.Attributes.Service,
+			"status":    d.Attributes.Status,
+			"host":      d.Attributes.Host,
+			"message":   d.Attributes.Message,
 		}
+		if len(d.Attributes.Tags) > 0 {
+			row["tags"] = d.Attributes.Tags
+		}
+		compact[i] = row
 	}
 	return compact
 }
@@ -39,8 +45,14 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	root.AddCommand(logs)
 }
 
+// compactLogSkippedFields lists the LogAttributes fields hidden from the
+// default `logs search` output. Identifiers and triage context (id, host,
+// tags) stay in the default view — only the potentially-large free-form
+// `attributes` blob is hidden. Surfaced as a `@skipped` meta-line.
+var compactLogSkippedFields = []string{"attributes"}
+
 func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
-	var query, from, to, sort string
+	var query, from, to, sort, cursor, storageTier string
 	var limit int
 	var full bool
 
@@ -66,7 +78,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				resp, err := client.SearchLogs(ctx, query,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),
-					sort, limit, "")
+					sort, limit, cursor, storageTier)
 				if err != nil {
 					return err
 				}
@@ -91,7 +103,11 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return nil
 				}
 
-				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), pagination, g.Format)
+				var meta map[string]any
+				if len(resp.Data) > 0 {
+					meta = map[string]any{"@skipped": compactLogSkippedFields}
+				}
+				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactLogs(resp.Data)), pagination, meta, g.Format)
 				return nil
 			})
 		},
@@ -101,7 +117,9 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Max results")
 	cmd.Flags().StringVar(&sort, "sort", "", "Sort order: asc or desc")
-	cmd.Flags().BoolVar(&full, "full", false, "Show full log entries with all attributes")
+	cmd.Flags().StringVar(&cursor, "cursor", "", "Pagination cursor from a previous response")
+	cmd.Flags().StringVar(&storageTier, "storage-tier", "", "Retention tier: indexes (default), online-archives, or flex")
+	cmd.Flags().BoolVar(&full, "full", false, "Include the free-form attributes blob (large) — see @skipped meta-line")
 	parent.AddCommand(cmd)
 }
 
@@ -132,7 +150,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				from := time.Now().Add(-5 * time.Minute).Format(time.RFC3339)
 				to := time.Now().Format(time.RFC3339)
 
-				resp, err := client.SearchLogs(ctx, q, from, to, "timestamp", 20, "")
+				resp, err := client.SearchLogs(ctx, q, from, to, "timestamp", 20, "", "")
 				if err != nil {
 					return err
 				}
@@ -154,7 +172,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					case <-ticker.C:
 						from = to
 						to = time.Now().Format(time.RFC3339)
-						resp, err = client.SearchLogs(ctx, q, from, to, "timestamp", 100, "")
+						resp, err = client.SearchLogs(ctx, q, from, to, "timestamp", 100, "", "")
 						if err != nil {
 							return err
 						}

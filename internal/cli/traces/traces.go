@@ -27,13 +27,12 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 }
 
 // compactSpanSkippedFields lists the trace attributes that `traces search`
-// drops from per-row output by default. Surfacing this list via a `@skipped`
-// meta-line lets callers see what's available behind `--full` without
-// guessing — the data is in the search response, not behind a follow-up API.
-var compactSpanSkippedFields = []string{
-	"trace_id", "span_id", "parent_id", "host", "type",
-	"resource_hash", "single_span", "attributes", "custom",
-}
+// drops from per-row output by default. Only the genuinely-large free-form
+// blobs are hidden — identifiers and context (trace_id, span_id, parent_id,
+// host, type, resource_hash) stay in the default view since they're what a
+// caller needs to chase a specific span. Surfaced via a `@skipped`
+// meta-line so callers know what's available behind `--full`.
+var compactSpanSkippedFields = []string{"attributes", "custom", "single_span"}
 
 func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	var query, service, from, to, cursor string
@@ -71,13 +70,19 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				spans := make([]map[string]any, len(resp.Data))
 				for i, d := range resp.Data {
 					row := map[string]any{
-						"service":   d.Attributes.Service,
-						"operation": d.Attributes.OperationName,
-						"resource":  d.Attributes.ResourceName,
-						"env":       d.Attributes.Env,
-						"status":    d.Attributes.Status,
-						"start":     d.Attributes.StartTimestamp,
-						"end":       d.Attributes.EndTimestamp,
+						"trace_id":      d.Attributes.TraceID,
+						"span_id":       d.Attributes.SpanID,
+						"parent_id":     d.Attributes.ParentID,
+						"service":       d.Attributes.Service,
+						"operation":     d.Attributes.OperationName,
+						"resource":      d.Attributes.ResourceName,
+						"resource_hash": d.Attributes.ResourceHash,
+						"type":          d.Attributes.Type,
+						"host":          d.Attributes.Host,
+						"env":           d.Attributes.Env,
+						"status":        d.Attributes.Status,
+						"start":         d.Attributes.StartTimestamp,
+						"end":           d.Attributes.EndTimestamp,
 					}
 					if len(d.Attributes.Tags) > 0 {
 						row["tags"] = d.Attributes.Tags
@@ -86,12 +91,6 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						row["error"] = d.Attributes.Error
 					}
 					if full {
-						row["trace_id"] = d.Attributes.TraceID
-						row["span_id"] = d.Attributes.SpanID
-						row["parent_id"] = d.Attributes.ParentID
-						row["host"] = d.Attributes.Host
-						row["type"] = d.Attributes.Type
-						row["resource_hash"] = d.Attributes.ResourceHash
 						row["single_span"] = d.Attributes.SingleSpan
 						if len(d.Attributes.Attributes) > 0 {
 							row["attributes"] = d.Attributes.Attributes
@@ -118,7 +117,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Max results")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Pagination cursor from a previous response's @pagination.next_cursor")
-	cmd.Flags().BoolVar(&full, "full", false, "Include all decoded fields (trace_id, span_id, parent_id, host, attributes, custom, etc) — see @skipped meta-line")
+	cmd.Flags().BoolVar(&full, "full", false, "Include the free-form attributes/custom blobs (large) — see @skipped meta-line")
 	parent.AddCommand(cmd)
 }
 

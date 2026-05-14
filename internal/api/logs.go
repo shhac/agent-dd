@@ -32,9 +32,11 @@ type LogSearchRequest struct {
 }
 
 type LogFilter struct {
-	Query string `json:"query"`
-	From  string `json:"from"`
-	To    string `json:"to"`
+	Query       string   `json:"query"`
+	From        string   `json:"from"`
+	To          string   `json:"to"`
+	Indexes     []string `json:"indexes,omitempty"`
+	StorageTier string   `json:"storage_tier,omitempty"`
 }
 
 type LogPage struct {
@@ -63,12 +65,17 @@ type LogAttributes struct {
 	Attributes map[string]any `json:"attributes,omitempty"`
 }
 
-func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, limit int, cursor string) (*LogSearchResponse, error) {
+// SearchLogs queries /v2/logs/events/search. `storageTier` selects which
+// retention tier to query — `indexes` (default), `online-archives`, or
+// `flex`. Without it, only the standard indexes are searched; archives and
+// Flex-tier data are inaccessible.
+func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, limit int, cursor, storageTier string) (*LogSearchResponse, error) {
 	req := LogSearchRequest{
 		Filter: &LogFilter{
-			Query: query,
-			From:  from,
-			To:    to,
+			Query:       query,
+			From:        from,
+			To:          to,
+			StorageTier: storageTier,
 		},
 	}
 	if sort != "" {
