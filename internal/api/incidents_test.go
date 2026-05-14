@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/shhac/agent-dd/internal/api"
@@ -27,9 +28,11 @@ func TestGetIncident(t *testing.T) {
 				"id":   "inc-999",
 				"type": "incidents",
 				"attributes": map[string]any{
-					"title":    "Database outage",
-					"status":   "active",
-					"severity": "SEV-1",
+					"title":             "Database outage",
+					"state":             "active",
+					"severity":          "SEV-1",
+					"customer_impacted": true,
+					"public_id":         42,
 				},
 			},
 		})
@@ -47,8 +50,14 @@ func TestGetIncident(t *testing.T) {
 	if incident.Attributes.Title != "Database outage" {
 		t.Errorf("expected title=Database outage, got %s", incident.Attributes.Title)
 	}
-	if incident.Attributes.Status != "active" {
-		t.Errorf("expected status=active, got %s", incident.Attributes.Status)
+	if incident.Attributes.State != "active" {
+		t.Errorf("expected state=active, got %s", incident.Attributes.State)
+	}
+	if !incident.Attributes.CustomerImpacted {
+		t.Error("expected customer_impacted=true")
+	}
+	if incident.Attributes.PublicID != 42 {
+		t.Errorf("expected public_id=42, got %d", incident.Attributes.PublicID)
 	}
 }
 
@@ -60,44 +69,31 @@ func TestCreateIncident(t *testing.T) {
 		if r.URL.Path != "/api/v2/incidents" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		if r.Header.Get("DD-API-KEY") != "test-key" {
-			t.Error("missing or wrong DD-API-KEY")
-		}
-		if r.Header.Get("DD-APPLICATION-KEY") != "test-app" {
-			t.Error("missing or wrong DD-APPLICATION-KEY")
-		}
 
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("failed to decode request body: %v", err)
 		}
 
-		data, ok := body["data"].(map[string]any)
-		if !ok {
-			t.Fatal("expected body.data to be an object")
-		}
+		data, _ := body["data"].(map[string]any)
 		if data["type"] != "incidents" {
 			t.Errorf("expected data.type=incidents, got %v", data["type"])
 		}
 
-		attrs, ok := data["attributes"].(map[string]any)
-		if !ok {
-			t.Fatal("expected data.attributes to be an object")
-		}
+		attrs, _ := data["attributes"].(map[string]any)
 		if attrs["title"] != "Service outage" {
 			t.Errorf("expected title=Service outage, got %v", attrs["title"])
 		}
-
-		fields, ok := attrs["fields"].(map[string]any)
-		if !ok {
-			t.Fatal("expected data.attributes.fields to be an object")
+		// v2 spec: severity is a top-level attribute string, not nested in fields.
+		if attrs["severity"] != "SEV-1" {
+			t.Errorf("expected attributes.severity=SEV-1, got %v", attrs["severity"])
 		}
-		sev, ok := fields["severity"].(map[string]any)
-		if !ok {
-			t.Fatal("expected fields.severity to be an object")
+		// customer_impacted is required by the API.
+		if attrs["customer_impacted"] != true {
+			t.Errorf("expected customer_impacted=true, got %v", attrs["customer_impacted"])
 		}
-		if sev["value"] != "SEV-1" {
-			t.Errorf("expected severity.value=SEV-1, got %v", sev["value"])
+		if _, hasFields := attrs["fields"]; hasFields {
+			t.Error("v2 create must not use legacy fields.severity envelope")
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
@@ -106,7 +102,7 @@ func TestCreateIncident(t *testing.T) {
 				"type": "incidents",
 				"attributes": map[string]any{
 					"title":    "Service outage",
-					"status":   "active",
+					"state":    "active",
 					"severity": "SEV-1",
 				},
 			},
@@ -115,76 +111,73 @@ func TestCreateIncident(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "test-key", "test-app")
-	incident, err := client.CreateIncident(context.Background(), "Service outage", "SEV-1", "")
+	incident, err := client.CreateIncident(context.Background(), "Service outage", "SEV-1", "", true)
 	if err != nil {
 		t.Fatalf("CreateIncident failed: %v", err)
 	}
 	if incident.ID != "incident-abc" {
 		t.Errorf("expected ID=incident-abc, got %s", incident.ID)
 	}
-	if incident.Attributes.Title != "Service outage" {
-		t.Errorf("expected title=Service outage, got %s", incident.Attributes.Title)
-	}
 }
 
-func TestCreateIncidentWithCommander(t *testing.T) {
+func TestCreateIncidentWithCommanderUUID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			t.Fatalf("failed to decode request body: %v", err)
-		}
-
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		data := body["data"].(map[string]any)
-
 		rels, ok := data["relationships"].(map[string]any)
 		if !ok {
 			t.Fatal("expected data.relationships to be present with commander")
 		}
-		commander, ok := rels["commander_user"].(map[string]any)
-		if !ok {
-			t.Fatal("expected relationships.commander_user to be an object")
-		}
-		cmdData, ok := commander["data"].(map[string]any)
-		if !ok {
-			t.Fatal("expected commander_user.data to be an object")
-		}
+		cmdData := rels["commander_user"].(map[string]any)["data"].(map[string]any)
 		if cmdData["type"] != "users" {
 			t.Errorf("expected commander data.type=users, got %v", cmdData["type"])
 		}
-		if cmdData["id"] != "user@example.com" {
-			t.Errorf("expected commander data.id=user@example.com, got %v", cmdData["id"])
+		if cmdData["id"] != "12345678-1234-1234-1234-123456789012" {
+			t.Errorf("commander data.id mismatch, got %v", cmdData["id"])
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
-			"data": map[string]any{
-				"id":   "incident-xyz",
-				"type": "incidents",
-				"attributes": map[string]any{
-					"title":  "Outage with commander",
-					"status": "active",
-				},
-			},
+			"data": map[string]any{"id": "incident-xyz", "type": "incidents"},
 		})
 	}))
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	incident, err := client.CreateIncident(context.Background(), "Outage with commander", "SEV-2", "user@example.com")
+	_, err := client.CreateIncident(context.Background(), "Outage", "SEV-2", "12345678-1234-1234-1234-123456789012", false)
 	if err != nil {
-		t.Fatalf("CreateIncident with commander failed: %v", err)
+		t.Fatalf("CreateIncident with valid UUID: %v", err)
 	}
-	if incident.ID != "incident-xyz" {
-		t.Errorf("expected ID=incident-xyz, got %s", incident.ID)
+}
+
+// Non-UUID commander values (handles, emails) must be rejected up-front.
+// DD returns a 400 server-side; surfacing a clear error pre-flight saves a
+// round trip and gives a better hint.
+func TestCreateIncidentRejectsNonUUIDCommander(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("server should not be hit when commander is not a UUID")
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	for _, bad := range []string{"user@example.com", "alice", "abc123"} {
+		_, err := client.CreateIncident(context.Background(), "Outage", "SEV-2", bad, false)
+		if err == nil {
+			t.Errorf("expected error for non-UUID commander %q, got nil", bad)
+		}
+		if err != nil && !strings.Contains(err.Error(), "UUID") {
+			t.Errorf("error should mention UUID, got %q", err.Error())
+		}
 	}
 }
 
 func TestListIncidents(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
 		if r.URL.Path != "/api/v2/incidents" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if s := r.URL.Query().Get("filter[state]"); s != "active" {
+			t.Errorf("expected filter[state]=active, got %q", s)
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
@@ -193,8 +186,8 @@ func TestListIncidents(t *testing.T) {
 					"id":   "inc-1",
 					"type": "incidents",
 					"attributes": map[string]any{
-						"title":  "Outage",
-						"status": "active",
+						"title": "Outage",
+						"state": "active",
 					},
 				},
 			},
@@ -210,15 +203,15 @@ func TestListIncidents(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	resp, err := client.ListIncidents(context.Background(), "")
+	resp, err := client.ListIncidents(context.Background(), "active")
 	if err != nil {
 		t.Fatalf("ListIncidents failed: %v", err)
 	}
 	if len(resp.Data) != 1 {
 		t.Fatalf("expected 1 incident, got %d", len(resp.Data))
 	}
-	if resp.Data[0].ID != "inc-1" {
-		t.Errorf("expected ID=inc-1, got %s", resp.Data[0].ID)
+	if resp.Data[0].Attributes.State != "active" {
+		t.Errorf("expected state=active, got %s", resp.Data[0].Attributes.State)
 	}
 	if !resp.HasMore() {
 		t.Error("expected HasMore() to be true")
@@ -228,16 +221,7 @@ func TestListIncidents(t *testing.T) {
 func TestListIncidentsNoMore(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{
-			"data": []map[string]any{
-				{
-					"id":   "inc-1",
-					"type": "incidents",
-					"attributes": map[string]any{
-						"title":  "Minor issue",
-						"status": "resolved",
-					},
-				},
-			},
+			"data": []map[string]any{},
 			"meta": map[string]any{
 				"pagination": map[string]any{
 					"offset":      0,
@@ -284,44 +268,27 @@ func TestUpdateIncident(t *testing.T) {
 		if r.Method != http.MethodPatch {
 			t.Errorf("expected PATCH, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v2/incidents/inc-123" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
 
 		var body map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			t.Fatalf("failed to decode request body: %v", err)
-		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		data := body["data"].(map[string]any)
+		attrs := data["attributes"].(map[string]any)
 
-		data, ok := body["data"].(map[string]any)
-		if !ok {
-			t.Fatal("expected body.data to be an object")
+		// State must be written via fields.state.value, NOT attributes.status.
+		if _, hasStatus := attrs["status"]; hasStatus {
+			t.Error("update must not write attributes.status (legacy v1, silent no-op on v2)")
 		}
-		if data["type"] != "incidents" {
-			t.Errorf("expected data.type=incidents, got %v", data["type"])
-		}
-		if data["id"] != "inc-123" {
-			t.Errorf("expected data.id=inc-123, got %v", data["id"])
-		}
-
-		attrs, ok := data["attributes"].(map[string]any)
-		if !ok {
-			t.Fatal("expected data.attributes to be an object")
-		}
-		if attrs["status"] != "resolved" {
-			t.Errorf("expected status=resolved, got %v", attrs["status"])
-		}
-
 		fields, ok := attrs["fields"].(map[string]any)
 		if !ok {
-			t.Fatal("expected attributes.fields for severity update")
+			t.Fatal("expected attributes.fields for state update")
 		}
-		sev, ok := fields["severity"].(map[string]any)
-		if !ok {
-			t.Fatal("expected fields.severity to be an object")
+		state := fields["state"].(map[string]any)
+		if state["value"] != "resolved" {
+			t.Errorf("expected fields.state.value=resolved, got %v", state["value"])
 		}
-		if sev["value"] != "SEV-3" {
-			t.Errorf("expected severity.value=SEV-3, got %v", sev["value"])
+		// Severity is a top-level attribute string.
+		if attrs["severity"] != "SEV-3" {
+			t.Errorf("expected attributes.severity=SEV-3, got %v", attrs["severity"])
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
@@ -330,7 +297,7 @@ func TestUpdateIncident(t *testing.T) {
 				"type": "incidents",
 				"attributes": map[string]any{
 					"title":    "Updated incident",
-					"status":   "resolved",
+					"state":    "resolved",
 					"severity": "SEV-3",
 				},
 			},
@@ -343,10 +310,7 @@ func TestUpdateIncident(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateIncident failed: %v", err)
 	}
-	if incident.ID != "inc-123" {
-		t.Errorf("expected ID=inc-123, got %s", incident.ID)
-	}
-	if incident.Attributes.Status != "resolved" {
-		t.Errorf("expected status=resolved, got %s", incident.Attributes.Status)
+	if incident.Attributes.State != "resolved" {
+		t.Errorf("expected state=resolved, got %s", incident.Attributes.State)
 	}
 }

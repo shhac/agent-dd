@@ -45,8 +45,12 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					entry := map[string]any{"id": inc.ID}
 					if inc.Attributes != nil {
 						entry["title"] = inc.Attributes.Title
-						entry["status"] = inc.Attributes.Status
+						entry["state"] = inc.Attributes.State
 						entry["severity"] = inc.Attributes.Severity
+						entry["customer_impacted"] = inc.Attributes.CustomerImpacted
+						if inc.Attributes.PublicID != 0 {
+							entry["public_id"] = inc.Attributes.PublicID
+						}
 					}
 					compact[i] = entry
 				}
@@ -59,7 +63,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			})
 		},
 	}
-	cmd.Flags().StringVar(&status, "status", "", "Filter by status (active, stable, resolved)")
+	cmd.Flags().StringVar(&status, "state", "", "Filter by state (active, stable, resolved)")
 	parent.AddCommand(cmd)
 }
 
@@ -84,7 +88,8 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 }
 
 func registerCreate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
-	var title, severity, commander string
+	var title, severity, commanderUUID string
+	var customerImpacted bool
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -99,7 +104,7 @@ func registerCreate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			}
 
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				incident, err := client.CreateIncident(ctx, title, severity, commander)
+				incident, err := client.CreateIncident(ctx, title, severity, commanderUUID, customerImpacted)
 				if err != nil {
 					return err
 				}
@@ -110,12 +115,13 @@ func registerCreate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	}
 	cmd.Flags().StringVar(&title, "title", "", "Incident title (required)")
 	cmd.Flags().StringVar(&severity, "severity", "", "Severity: SEV-1 through SEV-5 (required)")
-	cmd.Flags().StringVar(&commander, "commander", "", "Incident commander handle")
+	cmd.Flags().StringVar(&commanderUUID, "commander-uuid", "", "Incident commander Datadog user UUID")
+	cmd.Flags().BoolVar(&customerImpacted, "customer-impacted", false, "Mark the incident as customer-impacting")
 	parent.AddCommand(cmd)
 }
 
 func registerUpdate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
-	var status, severity string
+	var state, severity string
 
 	cmd := &cobra.Command{
 		Use:   "update <id>",
@@ -123,12 +129,12 @@ func registerUpdate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if status == "" && severity == "" {
-				output.WriteError(os.Stderr, agenterrors.New("at least --status or --severity is required", agenterrors.FixableByAgent))
+			if state == "" && severity == "" {
+				output.WriteError(os.Stderr, agenterrors.New("at least --state or --severity is required", agenterrors.FixableByAgent))
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				incident, err := client.UpdateIncident(ctx, args[0], status, severity)
+				incident, err := client.UpdateIncident(ctx, args[0], state, severity)
 				if err != nil {
 					return err
 				}
@@ -137,7 +143,7 @@ func registerUpdate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			})
 		},
 	}
-	cmd.Flags().StringVar(&status, "status", "", "New status (active, stable, resolved)")
+	cmd.Flags().StringVar(&state, "state", "", "New state (active, stable, resolved)")
 	cmd.Flags().StringVar(&severity, "severity", "", "New severity (SEV-1 through SEV-5)")
 	parent.AddCommand(cmd)
 }

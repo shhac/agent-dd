@@ -55,10 +55,10 @@ TRACES (APM)
   agent-dd traces services [--search <text>] [--env <env>]
 
 INCIDENTS
-  agent-dd incidents list [--status <status>]
+  agent-dd incidents list [--state <state>]
   agent-dd incidents get <id>
-  agent-dd incidents create --title <text> --severity <SEV-1..5>
-  agent-dd incidents update <id> [--status <status>] [--severity <sev>]
+  agent-dd incidents create --title <text> --severity <SEV-1..5> [--customer-impacted] [--commander-uuid <uuid>]
+  agent-dd incidents update <id> [--state <state>] [--severity <sev>]
 
 SLOs
   agent-dd slo list [--search <text>] [--tag <tag>]
