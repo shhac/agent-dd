@@ -2,29 +2,19 @@ package mockdd_test
 
 import (
 	"context"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/shhac/agent-dd/internal/api"
-	"github.com/shhac/agent-dd/internal/mockdd"
+	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 )
 
-// Each test boots the real mockdd handler via httptest and drives a real
-// api.Client against it. The point is to catch drift between the fixture
-// shapes mockdd emits and the structs the API client expects to decode —
-// the kind of bug the traces error-object regression hid for months.
-
-func newClient(t *testing.T) (*api.Client, func()) {
-	t.Helper()
-	srv := httptest.NewServer(mockdd.NewHandler())
-	cleanup := func() { srv.Close() }
-	return api.NewTestClient(srv.URL+"/api", "test-api-key", "test-app-key"), cleanup
-}
+// Each test drives a real api.Client against the canonical mockdd handler.
+// The point is to catch drift between the fixture shapes mockdd emits and
+// the structs the API client expects to decode — the kind of bug the
+// traces error-object regression hid for months.
 
 func TestMockddMonitorsListDecodesMutedPriorityLastTriggered(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	monitors, err := c.ListMonitors(context.Background(), "", nil, "")
 	if err != nil {
@@ -57,8 +47,7 @@ func TestMockddMonitorsListDecodesMutedPriorityLastTriggered(t *testing.T) {
 }
 
 func TestMockddIncidentsListResolvesCommanderViaIncluded(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.ListIncidents(context.Background(), "")
 	if err != nil {
@@ -81,8 +70,7 @@ func TestMockddIncidentsListResolvesCommanderViaIncluded(t *testing.T) {
 }
 
 func TestMockddIncidentsStateFilter(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.ListIncidents(context.Background(), "active")
 	if err != nil {
@@ -99,8 +87,7 @@ func TestMockddIncidentsStateFilter(t *testing.T) {
 }
 
 func TestMockddIncidentsGetByID(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	doc, err := c.GetIncident(context.Background(), "inc-a1b2c3d4")
 	if err != nil {
@@ -115,8 +102,7 @@ func TestMockddIncidentsGetByID(t *testing.T) {
 }
 
 func TestMockddEventsListDecodesSourceTypeName(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	events, err := c.ListEvents(context.Background(), 0, 1, "", nil)
 	if err != nil {
@@ -136,8 +122,7 @@ func TestMockddEventsListDecodesSourceTypeName(t *testing.T) {
 }
 
 func TestMockddMetricsQueryHappyPath(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.QueryMetrics(context.Background(), "avg:system.cpu.user{*}", 0, 1)
 	if err != nil {
@@ -162,8 +147,7 @@ func TestMockddMetricsQueryHappyPath(t *testing.T) {
 }
 
 func TestMockddMetricsQuerySurfacesError(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	_, err := c.QueryMetrics(context.Background(), "fail-query", 0, 1)
 	if err == nil {
@@ -175,8 +159,7 @@ func TestMockddMetricsQuerySurfacesError(t *testing.T) {
 }
 
 func TestMockddMetricsMetadataSetsNameFromArg(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	meta, err := c.GetMetricMetadata(context.Background(), "system.cpu.user")
 	if err != nil {
@@ -191,8 +174,7 @@ func TestMockddMetricsMetadataSetsNameFromArg(t *testing.T) {
 }
 
 func TestMockddHostsListCombinesFilter(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.ListHosts(context.Background(), "checkout", []string{"team:platform"})
 	if err != nil {
@@ -206,8 +188,7 @@ func TestMockddHostsListCombinesFilter(t *testing.T) {
 }
 
 func TestMockddSLOHistoryDecodesAllFields(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	history, err := c.GetSLOHistory(context.Background(), "slo-aaa111", 0, 1)
 	if err != nil {
@@ -236,8 +217,7 @@ func TestMockddSLOHistoryDecodesAllFields(t *testing.T) {
 }
 
 func TestMockddDowntimesListByMonitorID(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	// CreateDowntime first so the list isn't empty.
 	if _, err := c.CreateDowntime(context.Background(), 1001, 1700000000, "test"); err != nil {
@@ -251,8 +231,7 @@ func TestMockddDowntimesListByMonitorID(t *testing.T) {
 }
 
 func TestMockddLogsSearchDecodesEnvelope(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.SearchLogs(context.Background(), "*", "now-1h", "now", "", 10, "", "")
 	if err != nil {
@@ -272,8 +251,7 @@ func TestMockddLogsSearchDecodesEnvelope(t *testing.T) {
 }
 
 func TestMockddMonitorSearchEnvelopeWithCounts(t *testing.T) {
-	c, done := newClient(t)
-	defer done()
+	c := mockddtest.NewTestClient(t)
 
 	resp, err := c.SearchMonitors(context.Background(), "*", "")
 	if err != nil {
