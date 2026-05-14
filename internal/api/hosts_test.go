@@ -60,8 +60,8 @@ func TestListHosts(t *testing.T) {
 		}
 		q := r.URL.Query()
 		filters := q["filter"]
-		if len(filters) < 1 || filters[0] != "web" {
-			t.Errorf("expected filter to contain web, got %v", filters)
+		if len(filters) != 1 || filters[0] != "web" {
+			t.Errorf("expected single filter=web, got %v", filters)
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
@@ -91,6 +91,30 @@ func TestListHosts(t *testing.T) {
 	}
 	if resp.HostList[0].Name != "web-01.prod" {
 		t.Errorf("expected first host name=web-01.prod, got %s", resp.HostList[0].Name)
+	}
+}
+
+// Regression: /v1/hosts `filter` is a single string, not a repeatable param.
+// Previously we sent `filter=web&filter=env:prod`, and DD silently kept only
+// one value — making multi-tag filtering broken. Search + tags must combine
+// into one `filter` expression joined with `AND`.
+func TestListHostsCombinesFilterAndTags(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		filters := r.URL.Query()["filter"]
+		if len(filters) != 1 {
+			t.Fatalf("expected exactly one `filter` param, got %d: %v", len(filters), filters)
+		}
+		want := "web AND env:prod AND team:checkout"
+		if filters[0] != want {
+			t.Errorf("filter = %q, want %q", filters[0], want)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"host_list": []any{}, "total_returned": 0, "total_matching": 0})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	if _, err := client.ListHosts(context.Background(), "web", []string{"env:prod", "team:checkout"}); err != nil {
+		t.Fatalf("ListHosts: %v", err)
 	}
 }
 

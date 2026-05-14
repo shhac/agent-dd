@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
@@ -28,13 +29,18 @@ type HostListResponse struct {
 	TotalMatching int    `json:"total_matching"`
 }
 
+// ListHosts queries /v1/hosts. `filter` is a single string accepting Datadog
+// query syntax (not a repeatable param) — search text and tag selectors are
+// combined with `AND` into one expression.
 func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*HostListResponse, error) {
 	params := url.Values{}
+	parts := make([]string, 0, 1+len(tags))
 	if search != "" {
-		params.Set("filter", search)
+		parts = append(parts, search)
 	}
-	for _, tag := range tags {
-		params.Add("filter", tag)
+	parts = append(parts, tags...)
+	if len(parts) > 0 {
+		params.Set("filter", strings.Join(parts, " AND "))
 	}
 
 	return doAndDecode[HostListResponse](c, ctx, http.MethodGet, buildPath("/v1/hosts", params), nil)
