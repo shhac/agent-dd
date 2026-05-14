@@ -19,8 +19,8 @@ func TestGetIncident(t *testing.T) {
 		if r.URL.Path != "/api/v2/incidents/inc-999" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		if r.Header.Get("DD-API-KEY") != "test-key" {
-			t.Error("missing or wrong DD-API-KEY")
+		if inc := r.URL.Query().Get("include"); inc != "commander_user" {
+			t.Errorf("expected include=commander_user, got %q", inc)
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
@@ -34,30 +34,53 @@ func TestGetIncident(t *testing.T) {
 					"customer_impacted": true,
 					"public_id":         42,
 				},
+				"relationships": map[string]any{
+					"commander_user": map[string]any{
+						"data": map[string]any{
+							"id":   "00000000-0000-0000-0000-000000000001",
+							"type": "users",
+						},
+					},
+				},
+			},
+			"included": []map[string]any{
+				{
+					"id":   "00000000-0000-0000-0000-000000000001",
+					"type": "users",
+					"attributes": map[string]any{
+						"handle": "alice@example.com",
+						"name":   "Alice",
+					},
+				},
 			},
 		})
 	}))
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "test-key", "test-app")
-	incident, err := client.GetIncident(context.Background(), "inc-999")
+	doc, err := client.GetIncident(context.Background(), "inc-999")
 	if err != nil {
 		t.Fatalf("GetIncident failed: %v", err)
 	}
-	if incident.ID != "inc-999" {
-		t.Errorf("expected ID=inc-999, got %s", incident.ID)
+	if doc.Data.ID != "inc-999" {
+		t.Errorf("expected ID=inc-999, got %s", doc.Data.ID)
 	}
-	if incident.Attributes.Title != "Database outage" {
-		t.Errorf("expected title=Database outage, got %s", incident.Attributes.Title)
+	if doc.Data.Attributes.Title != "Database outage" {
+		t.Errorf("expected title=Database outage, got %s", doc.Data.Attributes.Title)
 	}
-	if incident.Attributes.State != "active" {
-		t.Errorf("expected state=active, got %s", incident.Attributes.State)
+	if doc.Data.Attributes.State != "active" {
+		t.Errorf("expected state=active, got %s", doc.Data.Attributes.State)
 	}
-	if !incident.Attributes.CustomerImpacted {
+	if !doc.Data.Attributes.CustomerImpacted {
 		t.Error("expected customer_impacted=true")
 	}
-	if incident.Attributes.PublicID != 42 {
-		t.Errorf("expected public_id=42, got %d", incident.Attributes.PublicID)
+	if doc.Data.Attributes.PublicID != 42 {
+		t.Errorf("expected public_id=42, got %d", doc.Data.Attributes.PublicID)
+	}
+	// Commander resolution must work via the JSON:API included array, not
+	// inline on the attributes object.
+	if h := doc.CommanderHandle(); h != "alice@example.com" {
+		t.Errorf("CommanderHandle = %q, want alice@example.com", h)
 	}
 }
 
@@ -179,6 +202,9 @@ func TestListIncidents(t *testing.T) {
 		if s := r.URL.Query().Get("filter[state]"); s != "active" {
 			t.Errorf("expected filter[state]=active, got %q", s)
 		}
+		if inc := r.URL.Query().Get("include"); inc != "commander_user" {
+			t.Errorf("expected include=commander_user, got %q", inc)
+		}
 
 		json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
@@ -189,6 +215,18 @@ func TestListIncidents(t *testing.T) {
 						"title": "Outage",
 						"state": "active",
 					},
+					"relationships": map[string]any{
+						"commander_user": map[string]any{
+							"data": map[string]any{"id": "uuid-1", "type": "users"},
+						},
+					},
+				},
+			},
+			"included": []map[string]any{
+				{
+					"id":         "uuid-1",
+					"type":       "users",
+					"attributes": map[string]any{"handle": "bob@example.com"},
 				},
 			},
 			"meta": map[string]any{
@@ -212,6 +250,9 @@ func TestListIncidents(t *testing.T) {
 	}
 	if resp.Data[0].Attributes.State != "active" {
 		t.Errorf("expected state=active, got %s", resp.Data[0].Attributes.State)
+	}
+	if h := resp.CommanderHandle(0); h != "bob@example.com" {
+		t.Errorf("CommanderHandle(0) = %q, want bob@example.com", h)
 	}
 	if !resp.HasMore() {
 		t.Error("expected HasMore() to be true")

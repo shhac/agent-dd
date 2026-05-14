@@ -52,6 +52,9 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 							entry["public_id"] = inc.Attributes.PublicID
 						}
 					}
+					if h := resp.CommanderHandle(i); h != "" {
+						entry["commander"] = h
+					}
 					compact[i] = entry
 				}
 				var pagination *output.Pagination
@@ -75,11 +78,17 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				incident, err := client.GetIncident(ctx, args[0])
+				doc, err := client.GetIncident(ctx, args[0])
 				if err != nil {
 					return err
 				}
-				shared.WriteItem(incident, g.Format)
+				// Surface the resolved commander handle alongside the raw
+				// incident so callers don't have to walk the included array.
+				out := map[string]any{"incident": doc.Data}
+				if h := doc.CommanderHandle(); h != "" {
+					out["commander"] = h
+				}
+				shared.WriteItem(out, g.Format)
 				return nil
 			})
 		},
