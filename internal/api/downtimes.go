@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type Downtime struct {
@@ -30,24 +31,27 @@ type downtimeListResponse struct {
 	Data []Downtime `json:"data"`
 }
 
-// CreateDowntime creates a v2 downtime to mute a monitor.
+// CreateDowntime creates a v2 downtime to mute a monitor. `end` is a unix
+// timestamp in seconds; 0 means indefinite. The v2 downtime API expects
+// schedule.{start,end} as ISO-8601 datetime strings (not epoch numbers),
+// and `start` is omitted entirely to mean "starts immediately" — sending an
+// explicit null was non-spec and risked rejection.
 func (c *Client) CreateDowntime(ctx context.Context, monitorID int, end int64, reason string) (*Downtime, error) {
-	schedule := map[string]any{
-		"start": nil,
+	attrs := map[string]any{
+		"message":            reason,
+		"scope":              "monitor_id:" + strconv.Itoa(monitorID),
+		"monitor_identifier": map[string]any{"monitor_id": monitorID},
 	}
 	if end > 0 {
-		schedule["end"] = strconv.FormatInt(end, 10)
+		attrs["schedule"] = map[string]any{
+			"end": time.Unix(end, 0).UTC().Format(time.RFC3339),
+		}
 	}
 
 	body := map[string]any{
 		"data": map[string]any{
-			"type": "downtime",
-			"attributes": map[string]any{
-				"message":            reason,
-				"scope":              "monitor_id:" + strconv.Itoa(monitorID),
-				"monitor_identifier": map[string]any{"monitor_id": monitorID},
-				"schedule":           schedule,
-			},
+			"type":       "downtime",
+			"attributes": attrs,
 		},
 	}
 
