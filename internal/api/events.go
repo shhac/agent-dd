@@ -7,17 +7,24 @@ import (
 	"strconv"
 )
 
-// Event represents a Datadog event.
+// Event represents a Datadog event. The documented response uses
+// `source_type_name` (not `source`) for the source identifier; `id_str` is
+// the string form of `id` (Datadog event IDs exceed JS's 53-bit safe int
+// range, so consumers passing the response through JS or to other JSON
+// tooling should prefer `id_str` to avoid precision loss).
 type Event struct {
-	ID           int64    `json:"id"`
-	Title        string   `json:"title"`
-	Text         string   `json:"text,omitempty"`
-	DateHappened int64    `json:"date_happened,omitempty"`
-	Source       string   `json:"source,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Priority     string   `json:"priority,omitempty"`
-	AlertType    string   `json:"alert_type,omitempty"`
-	Host         string   `json:"host,omitempty"`
+	ID             int64    `json:"id"`
+	IDStr          string   `json:"id_str,omitempty"`
+	Title          string   `json:"title"`
+	Text           string   `json:"text,omitempty"`
+	DateHappened   int64    `json:"date_happened,omitempty"`
+	SourceTypeName string   `json:"source_type_name,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
+	Priority       string   `json:"priority,omitempty"`
+	AlertType      string   `json:"alert_type,omitempty"`
+	Host           string   `json:"host,omitempty"`
+	URL            string   `json:"url,omitempty"`
+	DeviceName     string   `json:"device_name,omitempty"`
 }
 
 type EventListResponse struct {

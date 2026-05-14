@@ -70,11 +70,18 @@ func TestGetEvent(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
+		// Real DD response uses `source_type_name` (not `source`); `id_str` is
+		// the precision-safe string form of `id`. Large IDs (> 2^53) lose
+		// precision when round-tripped through JS-flavoured JSON, so id_str
+		// must round-trip cleanly even when ID itself does.
 		json.NewEncoder(w).Encode(map[string]any{
 			"event": map[string]any{
-				"id":    123,
-				"title": "CPU spike",
-				"text":  "CPU went above 90%",
+				"id":               9007199254740993, // > Number.MAX_SAFE_INTEGER
+				"id_str":           "9007199254740993",
+				"title":            "CPU spike",
+				"text":             "CPU went above 90%",
+				"source_type_name": "nagios",
+				"url":              "https://app.datadoghq.com/event/event?id=9007199254740993",
 			},
 		})
 	}))
@@ -85,13 +92,16 @@ func TestGetEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEvent failed: %v", err)
 	}
-	if event.ID != 123 {
-		t.Errorf("expected ID=123, got %d", event.ID)
+	if event.IDStr != "9007199254740993" {
+		t.Errorf("expected IDStr=9007199254740993, got %s", event.IDStr)
 	}
 	if event.Title != "CPU spike" {
 		t.Errorf("expected title=CPU spike, got %s", event.Title)
 	}
-	if event.Text != "CPU went above 90%" {
-		t.Errorf("expected text=CPU went above 90%%, got %s", event.Text)
+	if event.SourceTypeName != "nagios" {
+		t.Errorf("expected SourceTypeName=nagios, got %s", event.SourceTypeName)
+	}
+	if event.URL == "" {
+		t.Error("expected URL to be populated")
 	}
 }
