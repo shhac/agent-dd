@@ -26,7 +26,10 @@ func handleLogSearch(w http.ResponseWriter, r *http.Request) {
 	for i := range limit {
 		msg := logMessages[i%len(logMessages)]
 
-		if query != "" {
+		// `*` is Datadog's match-all sentinel and must return every entry —
+		// treating it as a literal substring (zero matches) diverges from
+		// the real API and breaks integration tests that use it.
+		if query != "" && query != "*" {
 			q := strings.ToLower(query)
 			match := strings.Contains(strings.ToLower(msg.Service), q) ||
 				strings.Contains(strings.ToLower(msg.Status), q) ||

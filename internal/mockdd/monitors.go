@@ -17,13 +17,48 @@ func handleMonitors(w http.ResponseWriter, r *http.Request) {
 func handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	results := make([]map[string]any, 0)
+	statusBucket := map[string]int{}
+	mutedBucket := map[string]int{}
 	for _, m := range monitors {
 		name, _ := m["name"].(string)
-		if query == "" || strings.Contains(strings.ToLower(name), strings.ToLower(query)) {
+		// `*` is Datadog's match-all sentinel; treat it as such instead of
+		// a literal substring (which matches nothing).
+		if query == "" || query == "*" || strings.Contains(strings.ToLower(name), strings.ToLower(query)) {
 			results = append(results, m)
+			if state, _ := m["overall_state"].(string); state != "" {
+				statusBucket[state]++
+			}
+			if muted, _ := m["muted"].(bool); muted {
+				mutedBucket["true"]++
+			} else {
+				mutedBucket["false"]++
+			}
 		}
 	}
-	writeJSON(w, 200, map[string]any{"monitors": results})
+
+	statusCounts := make([]map[string]any, 0, len(statusBucket))
+	for name, c := range statusBucket {
+		statusCounts = append(statusCounts, map[string]any{"name": name, "count": c})
+	}
+	mutedCounts := make([]map[string]any, 0, len(mutedBucket))
+	for name, c := range mutedBucket {
+		mutedCounts = append(mutedCounts, map[string]any{"name": name, "count": c})
+	}
+
+	writeJSON(w, 200, map[string]any{
+		"monitors": results,
+		"counts": map[string]any{
+			"status": statusCounts,
+			"muted":  mutedCounts,
+		},
+		"metadata": map[string]any{
+			"total":         len(results),
+			"page":          0,
+			"per_page":      30,
+			"page_count":    1,
+			"total_results": len(results),
+		},
+	})
 }
 
 func handleMonitorByID(w http.ResponseWriter, r *http.Request) {
