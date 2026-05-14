@@ -25,10 +25,15 @@ func handleSLOByID(w http.ResponseWriter, r *http.Request) {
 	if len(parts) > 1 && parts[1] == "history" {
 		writeJSON(w, 200, map[string]any{
 			"data": map[string]any{
+				"type": "metric",
 				"overall": map[string]any{
 					"sli_value":              99.92,
 					"uptime":                 99.92,
+					"span_precision":         2,
 					"error_budget_remaining": 0.02,
+				},
+				"thresholds": map[string]any{
+					"30d": map[string]any{"timeframe": "30d", "target": 99.9, "warning": 99.95},
 				},
 			},
 		})

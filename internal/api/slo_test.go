@@ -102,6 +102,13 @@ func TestGetSLO(t *testing.T) {
 	}
 }
 
+// /v1/slo/{id}/history returns:
+//   data.overall      → SLO-history-SLI data (sli_value/uptime/precision/...)
+//   data.thresholds   → map keyed by timeframe, values are SLOThreshold
+//                       (timeframe/target/warning) — NOT per-window SLI metrics.
+// Previously Thresholds was typed as map[string]SLOHistoryMetrics, so the
+// threshold map decoded into structs with all-zero fields. This test pins
+// the real wire shape.
 func TestGetSLOHistory(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -120,10 +127,18 @@ func TestGetSLOHistory(t *testing.T) {
 
 		json.NewEncoder(w).Encode(map[string]any{
 			"data": map[string]any{
+				"from_ts": 1000,
+				"to_ts":   2000,
+				"type":    "metric",
 				"overall": map[string]any{
 					"sli_value":              99.95,
 					"uptime":                 99.99,
+					"span_precision":         2.0,
 					"error_budget_remaining": 0.05,
+				},
+				"thresholds": map[string]any{
+					"30d": map[string]any{"timeframe": "30d", "target": 99.9, "warning": 99.95},
+					"7d":  map[string]any{"timeframe": "7d", "target": 99.0},
 				},
 			},
 		})
@@ -143,5 +158,21 @@ func TestGetSLOHistory(t *testing.T) {
 	}
 	if history.Overall.Uptime != 99.99 {
 		t.Errorf("expected Uptime=99.99, got %f", history.Overall.Uptime)
+	}
+	if history.Overall.SpanPrecision != 2.0 {
+		t.Errorf("expected SpanPrecision=2.0, got %f", history.Overall.SpanPrecision)
+	}
+	if history.FromTs != 1000 || history.ToTs != 2000 {
+		t.Errorf("expected FromTs=1000 ToTs=2000, got %d/%d", history.FromTs, history.ToTs)
+	}
+	if history.Type != "metric" {
+		t.Errorf("expected Type=metric, got %q", history.Type)
+	}
+	if len(history.Thresholds) != 2 {
+		t.Fatalf("expected 2 thresholds, got %d", len(history.Thresholds))
+	}
+	th30 := history.Thresholds["30d"]
+	if th30.Timeframe != "30d" || th30.Target != 99.9 || th30.Warning != 99.95 {
+		t.Errorf("30d threshold = %+v, want {30d 99.9 99.95}", th30)
 	}
 }

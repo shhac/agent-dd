@@ -29,17 +29,30 @@ type SLOStatus struct {
 	ErrorBudgetRemaining float64 `json:"error_budget_remaining,omitempty"`
 }
 
-// SLOHistory represents SLO history data.
+// SLOHistory represents the GET /v1/slo/{id}/history response. Field names
+// match Datadog's SDK model (SLOHistoryResponseData / SLOHistorySLIData):
+// `overall` carries the SLI values, `thresholds` is keyed by timeframe and
+// repeats the SLO's threshold definitions. Note `thresholds` is NOT
+// per-timeframe SLI metrics — those live in `overall` only.
 type SLOHistory struct {
-	Overall    *SLOHistoryMetrics           `json:"overall,omitempty"`
-	Thresholds map[string]SLOHistoryMetrics `json:"thresholds,omitempty"`
+	Overall    *SLOHistorySLIData      `json:"overall,omitempty"`
+	Thresholds map[string]SLOThreshold `json:"thresholds,omitempty"`
+	FromTs     int64                   `json:"from_ts,omitempty"`
+	ToTs       int64                   `json:"to_ts,omitempty"`
+	Type       string                  `json:"type,omitempty"`
 }
 
-type SLOHistoryMetrics struct {
+// SLOHistorySLIData carries the computed SLI values for a single time window.
+// Naming matches the canonical model in Datadog's API client SDK.
+type SLOHistorySLIData struct {
 	SLIValue             float64 `json:"sli_value,omitempty"`
 	SpanPrecision        float64 `json:"span_precision,omitempty"`
 	Uptime               float64 `json:"uptime,omitempty"`
+	Precision            float64 `json:"precision,omitempty"`
 	ErrorBudgetRemaining float64 `json:"error_budget_remaining,omitempty"`
+	MonitorType          string  `json:"monitor_type,omitempty"`
+	MonitorModified      int64   `json:"monitor_modified,omitempty"`
+	Name                 string  `json:"name,omitempty"`
 }
 
 type SLOListResponse struct {
