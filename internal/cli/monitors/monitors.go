@@ -108,11 +108,15 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				monitors, err := client.SearchMonitors(ctx, query, status)
+				resp, err := client.SearchMonitors(ctx, query, status)
 				if err != nil {
 					return err
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(toCompactMonitors(monitors)), nil, g.Format)
+				var meta map[string]any
+				if resp.Counts != nil {
+					meta = map[string]any{"@counts": resp.Counts}
+				}
+				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactMonitors(resp.Monitors)), nil, meta, g.Format)
 				return nil
 			})
 		},

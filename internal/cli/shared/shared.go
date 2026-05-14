@@ -127,9 +127,21 @@ func ToAnySlice[T any](s []T) []any {
 }
 
 func WritePaginatedList(items []any, pagination *output.Pagination, format string) {
+	WritePaginatedListWithMeta(items, pagination, nil, format)
+}
+
+// WritePaginatedListWithMeta writes a paginated list plus optional meta
+// rollups. In NDJSON mode each meta key is emitted as its own line before
+// the data rows; the convention is to use an `@`-prefix on the key (e.g.
+// "@counts") so consumers can filter the row from the data stream. In JSON
+// mode the meta keys are merged into the top-level envelope alongside `data`.
+func WritePaginatedListWithMeta(items []any, pagination *output.Pagination, meta map[string]any, format string) {
 	f := output.ResolveFormat(format, output.FormatNDJSON)
 	if f == output.FormatNDJSON {
 		w := output.NewNDJSONWriter(os.Stdout)
+		for key, val := range meta {
+			_ = w.WriteMetaLine(key, val)
+		}
 		for _, item := range items {
 			_ = w.WriteItem(item)
 		}
@@ -139,6 +151,9 @@ func WritePaginatedList(items []any, pagination *output.Pagination, format strin
 		return
 	}
 	result := map[string]any{"data": items}
+	for k, v := range meta {
+		result[k] = v
+	}
 	if pagination != nil {
 		result["pagination"] = pagination
 	}

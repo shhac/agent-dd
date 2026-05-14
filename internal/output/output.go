@@ -131,6 +131,13 @@ func (n *NDJSONWriter) WritePagination(p *Pagination) error {
 	return n.enc.Encode(map[string]any{"@pagination": p})
 }
 
+// WriteMetaLine emits a single NDJSON line keyed by `key` with the given
+// value. Use the `@`-prefix convention for non-data rows (rollups, counts,
+// truncation notices, etc) so consumers can filter them from the data stream.
+func (n *NDJSONWriter) WriteMetaLine(key string, value any) error {
+	return n.enc.Encode(map[string]any{key: value})
+}
+
 func pruneNulls(v any) any {
 	switch val := v.(type) {
 	case map[string]any:

@@ -69,6 +69,16 @@ func TestSearchMonitors(t *testing.T) {
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
+			"counts": map[string]any{
+				"status": []map[string]any{
+					{"name": "alert", "count": 2},
+					{"name": "ok", "count": 1},
+				},
+				"muted": []map[string]any{
+					{"name": "false", "count": 3},
+				},
+			},
+			"metadata": map[string]any{"total": 3, "page": 0, "per_page": 30, "page_count": 1, "total_results": 3},
 			"monitors": []map[string]any{
 				{"id": 10, "name": "CPU High", "overall_state": "alert", "type": "metric alert"},
 				{"id": 11, "name": "Disk OK", "overall_state": "ok", "type": "metric alert"},
@@ -79,16 +89,27 @@ func TestSearchMonitors(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	monitors, err := client.SearchMonitors(context.Background(), "host:web01", "alert")
+	resp, err := client.SearchMonitors(context.Background(), "host:web01", "alert")
 	if err != nil {
 		t.Fatalf("SearchMonitors failed: %v", err)
 	}
-	if len(monitors) != 2 {
-		t.Fatalf("expected 2 monitors after status filter, got %d", len(monitors))
+	if len(resp.Monitors) != 2 {
+		t.Fatalf("expected 2 monitors after status filter, got %d", len(resp.Monitors))
 	}
-	for _, m := range monitors {
+	for _, m := range resp.Monitors {
 		if m.Status != "alert" {
 			t.Errorf("expected status alert, got %s", m.Status)
 		}
+	}
+	// The status filter applies client-side to Monitors only; Counts reflects
+	// the full pre-filter result set so the rollup remains meaningful.
+	if resp.Counts == nil {
+		t.Fatal("expected non-nil Counts")
+	}
+	if len(resp.Counts.Status) != 2 {
+		t.Errorf("expected 2 status buckets, got %d", len(resp.Counts.Status))
+	}
+	if resp.Metadata == nil || resp.Metadata.Total != 3 {
+		t.Errorf("expected metadata.total=3, got %+v", resp.Metadata)
 	}
 }
