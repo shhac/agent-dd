@@ -26,9 +26,19 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	root.AddCommand(tr)
 }
 
+// compactSpanSkippedFields lists the trace attributes that `traces search`
+// drops from per-row output by default. Surfacing this list via a `@skipped`
+// meta-line lets callers see what's available behind `--full` without
+// guessing — the data is in the search response, not behind a follow-up API.
+var compactSpanSkippedFields = []string{
+	"trace_id", "span_id", "parent_id", "host", "type",
+	"resource_hash", "single_span", "attributes", "custom",
+}
+
 func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
-	var query, service, from, to string
+	var query, service, from, to, cursor string
 	var limit int
+	var full bool
 
 	cmd := &cobra.Command{
 		Use:   "search",
@@ -53,14 +63,14 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				resp, err := client.SearchTraces(ctx, query, service,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),
-					limit)
+					limit, cursor)
 				if err != nil {
 					return err
 				}
 
 				spans := make([]map[string]any, len(resp.Data))
 				for i, d := range resp.Data {
-					spans[i] = map[string]any{
+					row := map[string]any{
 						"service":   d.Attributes.Service,
 						"operation": d.Attributes.OperationName,
 						"resource":  d.Attributes.ResourceName,
@@ -70,13 +80,34 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"end":       d.Attributes.EndTimestamp,
 					}
 					if len(d.Attributes.Tags) > 0 {
-						spans[i]["tags"] = d.Attributes.Tags
+						row["tags"] = d.Attributes.Tags
 					}
 					if d.Attributes.Error != nil {
-						spans[i]["error"] = d.Attributes.Error
+						row["error"] = d.Attributes.Error
 					}
+					if full {
+						row["trace_id"] = d.Attributes.TraceID
+						row["span_id"] = d.Attributes.SpanID
+						row["parent_id"] = d.Attributes.ParentID
+						row["host"] = d.Attributes.Host
+						row["type"] = d.Attributes.Type
+						row["resource_hash"] = d.Attributes.ResourceHash
+						row["single_span"] = d.Attributes.SingleSpan
+						if len(d.Attributes.Attributes) > 0 {
+							row["attributes"] = d.Attributes.Attributes
+						}
+						if len(d.Attributes.Custom) > 0 {
+							row["custom"] = d.Attributes.Custom
+						}
+					}
+					spans[i] = row
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), g.Format)
+
+				var meta map[string]any
+				if !full && len(resp.Data) > 0 {
+					meta = map[string]any{"@skipped": compactSpanSkippedFields}
+				}
+				shared.WritePaginatedListWithMeta(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), meta, g.Format)
 				return nil
 			})
 		},
@@ -86,6 +117,8 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().StringVar(&from, "from", "", "Start time (default: now-1h)")
 	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Max results")
+	cmd.Flags().StringVar(&cursor, "cursor", "", "Pagination cursor from a previous response's @pagination.next_cursor")
+	cmd.Flags().BoolVar(&full, "full", false, "Include all decoded fields (trace_id, span_id, parent_id, host, attributes, custom, etc) — see @skipped meta-line")
 	parent.AddCommand(cmd)
 }
 

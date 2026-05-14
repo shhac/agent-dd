@@ -18,7 +18,7 @@ func TestMockddTraceSearchDecodesV2ErrorObject(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	client := api.NewTestClient(srv.URL+"/api", "test-api-key", "test-app-key")
-	resp, err := client.SearchTraces(context.Background(), "*", "", "now-1h", "now", 50)
+	resp, err := client.SearchTraces(context.Background(), "*", "", "now-1h", "now", 50, "")
 	if err != nil {
 		t.Fatalf("SearchTraces: %v", err)
 	}

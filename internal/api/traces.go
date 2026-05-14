@@ -36,22 +36,34 @@ type TraceData struct {
 	Attributes TraceAttributes `json:"attributes"`
 }
 
+// TraceAttributes mirrors `data[].attributes` from /v2/spans/events/search.
+// The documented v2 schema includes most fields here plus a free-form
+// `attributes` blob carrying custom per-span data (HTTP method, db.statement,
+// error stack tags, etc) — `Attributes` and `Custom` are the rich-detail
+// fields the search response already returns. There is no separate
+// "get span by ID" endpoint; search responses are self-contained.
 type TraceAttributes struct {
-	TraceID        string     `json:"trace_id,omitempty"`
-	SpanID         string     `json:"span_id,omitempty"`
-	Service        string     `json:"service,omitempty"`
-	OperationName  string     `json:"operation_name,omitempty"`
-	ResourceName   string     `json:"resource_name,omitempty"`
-	Type           string     `json:"type,omitempty"`
-	StartTimestamp string     `json:"start_timestamp,omitempty"`
-	EndTimestamp   string     `json:"end_timestamp,omitempty"`
-	Env            string     `json:"env,omitempty"`
-	Tags           []string   `json:"tags,omitempty"`
-	Error          *SpanError `json:"error,omitempty"`
-	Status         string     `json:"status,omitempty"`
+	TraceID        string         `json:"trace_id,omitempty"`
+	SpanID         string         `json:"span_id,omitempty"`
+	ParentID       string         `json:"parent_id,omitempty"`
+	Service        string         `json:"service,omitempty"`
+	OperationName  string         `json:"operation_name,omitempty"`
+	ResourceName   string         `json:"resource_name,omitempty"`
+	ResourceHash   string         `json:"resource_hash,omitempty"`
+	Type           string         `json:"type,omitempty"`
+	StartTimestamp string         `json:"start_timestamp,omitempty"`
+	EndTimestamp   string         `json:"end_timestamp,omitempty"`
+	Env            string         `json:"env,omitempty"`
+	Host           string         `json:"host,omitempty"`
+	Tags           []string       `json:"tags,omitempty"`
+	Error          *SpanError     `json:"error,omitempty"`
+	Status         string         `json:"status,omitempty"`
+	SingleSpan     bool           `json:"single_span,omitempty"`
+	Attributes     map[string]any `json:"attributes,omitempty"`
+	Custom         map[string]any `json:"custom,omitempty"`
 }
 
-func (c *Client) SearchTraces(ctx context.Context, query, service, from, to string, limit int) (*TraceSearchResponse, error) {
+func (c *Client) SearchTraces(ctx context.Context, query, service, from, to string, limit int, cursor string) (*TraceSearchResponse, error) {
 	filterQuery := query
 	if service != "" {
 		filterQuery = strings.TrimSpace("service:" + service + " " + query)
@@ -69,8 +81,15 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 		},
 		"sort": "-timestamp",
 	}
+	page := map[string]any{}
 	if limit > 0 {
-		attrs["page"] = map[string]any{"limit": limit}
+		page["limit"] = limit
+	}
+	if cursor != "" {
+		page["cursor"] = cursor
+	}
+	if len(page) > 0 {
+		attrs["page"] = page
 	}
 	body := map[string]any{
 		"data": map[string]any{

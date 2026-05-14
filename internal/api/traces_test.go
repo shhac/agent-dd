@@ -70,7 +70,7 @@ func TestSearchTraces(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	resp, err := client.SearchTraces(context.Background(), "status:error", "web-api", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", 10)
+	resp, err := client.SearchTraces(context.Background(), "status:error", "web-api", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", 10, "")
 	if err != nil {
 		t.Fatalf("SearchTraces failed: %v", err)
 	}
@@ -107,11 +107,37 @@ func TestSearchTracesRejectsFlatBody(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	if _, err := client.SearchTraces(context.Background(), "*", "svc", "now-1h", "now", 5); err != nil {
+	if _, err := client.SearchTraces(context.Background(), "*", "svc", "now-1h", "now", 5, ""); err != nil {
 		t.Fatalf("SearchTraces should succeed against envelope-checking server: %v", err)
 	}
 	if !called {
 		t.Fatal("server handler was not invoked")
+	}
+}
+
+// SearchTraces must plumb the cursor arg through to page.cursor in the
+// request body so callers can paginate using the @pagination.next_cursor
+// from a previous response. Mirrors what SearchLogs already does.
+func TestSearchTracesSendsCursor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		data := body["data"].(map[string]any)
+		attrs := data["attributes"].(map[string]any)
+		page, ok := attrs["page"].(map[string]any)
+		if !ok {
+			t.Fatal("expected page in attributes when cursor is set")
+		}
+		if page["cursor"] != "abc-123" {
+			t.Errorf("expected page.cursor=abc-123, got %v", page["cursor"])
+		}
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{}})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	if _, err := client.SearchTraces(context.Background(), "*", "", "now-1h", "now", 0, "abc-123"); err != nil {
+		t.Fatalf("SearchTraces with cursor: %v", err)
 	}
 }
 
@@ -137,7 +163,7 @@ func TestSearchTracesCursor(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	resp, err := client.SearchTraces(context.Background(), "*", "", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", 10)
+	resp, err := client.SearchTraces(context.Background(), "*", "", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", 10, "")
 	if err != nil {
 		t.Fatalf("SearchTraces failed: %v", err)
 	}
@@ -179,7 +205,7 @@ func TestSearchTracesErrorObject(t *testing.T) {
 	defer srv.Close()
 
 	client := api.NewTestClient(srv.URL+"/api", "key", "app")
-	resp, err := client.SearchTraces(context.Background(), "status:error", "bookingservice", "now-1h", "now", 10)
+	resp, err := client.SearchTraces(context.Background(), "status:error", "bookingservice", "now-1h", "now", 10, "")
 	if err != nil {
 		t.Fatalf("SearchTraces failed: %v", err)
 	}
