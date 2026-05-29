@@ -61,7 +61,7 @@ func (c *Client) QueryMetrics(ctx context.Context, query string, from, to int64)
 		"from":  {strconv.FormatInt(from, 10)},
 		"to":    {strconv.FormatInt(to, 10)},
 	}
-	path := "/v1/query?" + params.Encode()
+	path := buildPath("/v1/query", params)
 	resp, err := doAndDecode[MetricQueryResponse](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

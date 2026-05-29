@@ -52,7 +52,7 @@ func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*
 // guard we'd silently return whichever host came first in the response.
 func (c *Client) GetHost(ctx context.Context, hostname string) (*Host, error) {
 	params := url.Values{"filter": {hostname}}
-	path := "/v1/hosts?" + params.Encode()
+	path := buildPath("/v1/hosts", params)
 
 	resp, err := doAndDecode[HostListResponse](c, ctx, http.MethodGet, path, nil)
 	if err != nil {

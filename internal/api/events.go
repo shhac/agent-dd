@@ -43,7 +43,7 @@ func (c *Client) ListEvents(ctx context.Context, from, to int64, source string, 
 		params.Add("tags", tag)
 	}
 
-	path := "/v1/events?" + params.Encode()
+	path := buildPath("/v1/events", params)
 	resp, err := doAndDecode[EventListResponse](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

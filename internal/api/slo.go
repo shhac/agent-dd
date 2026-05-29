@@ -85,6 +85,6 @@ func (c *Client) GetSLOHistory(ctx context.Context, id string, from, to int64) (
 		"from_ts": {strconv.FormatInt(from, 10)},
 		"to_ts":   {strconv.FormatInt(to, 10)},
 	}
-	path := "/v1/slo/" + url.PathEscape(id) + "/history?" + params.Encode()
+	path := buildPath("/v1/slo/"+url.PathEscape(id)+"/history", params)
 	return doAndDecodeData[SLOHistory](c, ctx, http.MethodGet, path, nil)
 }
