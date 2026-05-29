@@ -189,6 +189,27 @@ func RequireFlag(flag, value, hint string) bool {
 	return false
 }
 
+// MaxSearchPageLimit is Datadog's documented per-page maximum for the v2
+// logs-events and spans-events search endpoints. Forwarding a larger
+// page[limit] is rejected with HTTP 400 on sites that enforce it, so we
+// reject it client-side with a hint toward cursor pagination instead.
+const MaxSearchPageLimit = 1000
+
+// ValidateLimitOrWriteErr checks that a search --limit is within Datadog's
+// per-page maximum, writing an agent-fixable error to stderr if not. Returns
+// true if valid, false if it exceeds the cap (error already written). We
+// reject rather than clamp so callers never silently compute over a truncated
+// sample — the hint points at the cursor pagination the search already exposes.
+func ValidateLimitOrWriteErr(limit int) bool {
+	if limit <= MaxSearchPageLimit {
+		return true
+	}
+	output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent,
+		"--limit must be ≤ %d (Datadog's per-page max for search)", MaxSearchPageLimit).
+		WithHint("Use a smaller --limit, then page with --cursor from the response's @pagination.next_cursor"))
+	return false
+}
+
 // SingleTag converts a single tag string to a slice, returning nil if empty.
 func SingleTag(tag string) []string {
 	if tag == "" {

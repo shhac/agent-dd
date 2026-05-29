@@ -63,13 +63,26 @@ func InstallClientFactory(t *testing.T) *httptest.Server {
 // commands.
 func CaptureStdout(t *testing.T, fn func()) string {
 	t.Helper()
+	return capture(t, &os.Stdout, fn)
+}
+
+// CaptureStderr swaps os.Stderr for the duration of fn and returns whatever
+// was written. CLI tests use it to assert the agent-facing error JSON that
+// commands emit via output.WriteError.
+func CaptureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	return capture(t, &os.Stderr, fn)
+}
+
+func capture(t *testing.T, target **os.File, fn func()) string {
+	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("os.Pipe: %v", err)
 	}
-	orig := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
+	orig := *target
+	*target = w
+	defer func() { *target = orig }()
 
 	done := make(chan struct{})
 	var buf bytes.Buffer

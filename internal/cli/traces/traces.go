@@ -96,6 +96,10 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
+			if !shared.ValidateLimitOrWriteErr(limit) {
+				return nil
+			}
+
 			if limit == 0 {
 				limit = 50
 			}

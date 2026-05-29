@@ -1,10 +1,13 @@
 package shared_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/shhac/agent-dd/internal/cli/shared"
+	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 	"github.com/shhac/agent-dd/internal/output"
 )
 
@@ -162,3 +165,41 @@ func TestParseIntArg(t *testing.T) {
 
 // Ensure output.Pagination is used correctly by CursorPagination.
 var _ *output.Pagination = shared.CursorPagination("test")
+
+func TestValidateLimitOrWriteErr(t *testing.T) {
+	t.Run("at and below max pass without writing", func(t *testing.T) {
+		for _, limit := range []int{0, 1, 50, shared.MaxSearchPageLimit} {
+			stderr := mockddtest.CaptureStderr(t, func() {
+				if !shared.ValidateLimitOrWriteErr(limit) {
+					t.Errorf("limit %d should be allowed", limit)
+				}
+			})
+			if stderr != "" {
+				t.Errorf("limit %d should not write to stderr, got %q", limit, stderr)
+			}
+		}
+	})
+
+	t.Run("over max fails with agent-fixable hinted error", func(t *testing.T) {
+		var ok bool
+		stderr := mockddtest.CaptureStderr(t, func() {
+			ok = shared.ValidateLimitOrWriteErr(shared.MaxSearchPageLimit + 1)
+		})
+		if ok {
+			t.Fatal("limit over max should be rejected")
+		}
+		var row map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &row); err != nil {
+			t.Fatalf("expected JSON error on stderr, got %q (%v)", stderr, err)
+		}
+		if row["fixable_by"] != "agent" {
+			t.Errorf("expected fixable_by=agent, got %v", row["fixable_by"])
+		}
+		if msg, _ := row["error"].(string); !strings.Contains(msg, "1000") {
+			t.Errorf("expected error citing the 1000 max, got %q", msg)
+		}
+		if hint, _ := row["hint"].(string); !strings.Contains(hint, "cursor") {
+			t.Errorf("expected hint pointing at cursor pagination, got %q", hint)
+		}
+	})
+}

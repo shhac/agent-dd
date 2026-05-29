@@ -4,9 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
+	"github.com/shhac/agent-dd/internal/api"
+	"github.com/shhac/agent-dd/internal/cli/logs"
 	"github.com/shhac/agent-dd/internal/cli/shared"
+	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 )
 
 func TestLogsSearch(t *testing.T) {
@@ -156,5 +162,42 @@ func TestLogsAggregate(t *testing.T) {
 	}
 	if len(resp.Data.Buckets) != 1 {
 		t.Fatalf("expected 1 bucket, got %d", len(resp.Data.Buckets))
+	}
+}
+
+// logs search shares the same per-page limit guard as traces search: a
+// --limit above Datadog's max must be rejected client-side, before any API
+// call, with an agent-fixable hinted error rather than an opaque HTTP 400.
+func TestLogsSearchRejectsLimitOverMax(t *testing.T) {
+	mockddtest.InstallClientFactory(t)
+	root := &cobra.Command{Use: "agent-dd"}
+	g := &shared.GlobalFlags{Format: "ndjson"}
+	logs.Register(root, func() *shared.GlobalFlags { return g })
+
+	shared.ClientFactory = func() (*api.Client, error) {
+		t.Fatal("client factory invoked — guard should reject --limit before any API call")
+		return nil, nil
+	}
+
+	root.SetArgs([]string{"logs", "search", "--query", "*", "--limit", "1001"})
+
+	var stdout string
+	stderr := mockddtest.CaptureStderr(t, func() {
+		stdout = mockddtest.CaptureStdout(t, func() {
+			if err := root.Execute(); err != nil {
+				t.Fatalf("execute: %v", err)
+			}
+		})
+	})
+
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("expected no stdout when limit is rejected, got %q", stdout)
+	}
+	var row map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &row); err != nil {
+		t.Fatalf("expected JSON error on stderr, got %q (%v)", stderr, err)
+	}
+	if row["fixable_by"] != "agent" {
+		t.Errorf("expected fixable_by=agent, got %v", row["fixable_by"])
 	}
 }

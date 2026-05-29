@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/cli/traces"
 	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
@@ -100,6 +101,66 @@ func TestTracesSearchDefaultEmitsIDsAndSkippedMeta(t *testing.T) {
 	}
 	if len(want) > 0 {
 		t.Errorf("@skipped missing entries: %v", want)
+	}
+}
+
+// A --limit above Datadog's per-page max must be rejected client-side with an
+// agent-fixable error, before any API call — sites that enforce the cap return
+// an opaque HTTP 400, and silently clamping would make callers compute over a
+// truncated sample. The hint points at the cursor pagination search exposes.
+func TestTracesSearchRejectsLimitOverMax(t *testing.T) {
+	mockddtest.InstallClientFactory(t)
+	root := &cobra.Command{Use: "agent-dd"}
+	g := &shared.GlobalFlags{Format: "ndjson"}
+	traces.Register(root, func() *shared.GlobalFlags { return g })
+
+	// The guard must short-circuit before the client is ever resolved.
+	shared.ClientFactory = func() (*api.Client, error) {
+		t.Fatal("client factory invoked — guard should reject --limit before any API call")
+		return nil, nil
+	}
+
+	root.SetArgs([]string{"traces", "search", "--query", "*", "--limit", "1001"})
+
+	var stdout string
+	stderr := mockddtest.CaptureStderr(t, func() {
+		stdout = mockddtest.CaptureStdout(t, func() {
+			if err := root.Execute(); err != nil {
+				t.Fatalf("execute: %v", err)
+			}
+		})
+	})
+
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("expected no stdout when limit is rejected, got %q", stdout)
+	}
+
+	var errRow map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &errRow); err != nil {
+		t.Fatalf("expected JSON error on stderr, got %q (%v)", stderr, err)
+	}
+	if got, _ := errRow["fixable_by"].(string); got != "agent" {
+		t.Errorf("expected fixable_by=agent, got %q", got)
+	}
+	if msg, _ := errRow["error"].(string); !strings.Contains(msg, "1000") {
+		t.Errorf("expected error to cite the 1000 max, got %q", msg)
+	}
+	if hint, _ := errRow["hint"].(string); !strings.Contains(hint, "cursor") {
+		t.Errorf("expected hint to point at cursor pagination, got %q", hint)
+	}
+}
+
+// --limit at exactly the max is allowed through to the API.
+func TestTracesSearchAllowsLimitAtMax(t *testing.T) {
+	cmd := newCmd(t)
+	cmd.SetArgs([]string{"traces", "search", "--query", "*", "--limit", "1000"})
+	out := mockddtest.CaptureStdout(t, func() {
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("execute: %v", err)
+		}
+	})
+	if _, meta := parseNDJSON(t, out); meta == nil {
+		t.Fatal("expected normal output at limit=1000")
 	}
 }
 
