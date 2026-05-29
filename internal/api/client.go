@@ -67,18 +67,43 @@ type RequestPreview struct {
 // PreviewRequest builds a redacted preview of the request for the given inputs
 // without sending it. Header values for the credential headers are masked.
 func (c *Client) PreviewRequest(method, path string, body json.RawMessage) RequestPreview {
-	headers := map[string]string{
-		"DD-API-KEY":         redactSecret(c.apiKey),
-		"DD-APPLICATION-KEY": redactSecret(c.appKey),
-	}
+	var requestBody any
 	if len(body) > 0 {
-		headers["Content-Type"] = "application/json"
+		requestBody = body
 	}
+	req, err := c.buildRequest(context.Background(), method, path, requestBody)
+	if err != nil {
+		return RequestPreview{
+			Method: method,
+			URL:    c.baseURL + path,
+			Headers: map[string]string{
+				"DD-API-KEY":         redactSecret(c.apiKey),
+				"DD-APPLICATION-KEY": redactSecret(c.appKey),
+			},
+			Body: body,
+		}
+	}
+
+	headers := map[string]string{}
+	for key, vals := range req.Header {
+		if len(vals) == 0 {
+			continue
+		}
+		headers[key] = vals[0]
+	}
+	headers["DD-API-KEY"] = redactSecret(c.apiKey)
+	headers["DD-APPLICATION-KEY"] = redactSecret(c.appKey)
+
+	var previewBody json.RawMessage
+	if req.Body != nil {
+		previewBody, _ = io.ReadAll(req.Body)
+	}
+
 	return RequestPreview{
 		Method:  method,
-		URL:     c.baseURL + path,
+		URL:     req.URL.String(),
 		Headers: headers,
-		Body:    body,
+		Body:    previewBody,
 	}
 }
 
@@ -92,25 +117,10 @@ func redactSecret(s string) string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body any) (json.RawMessage, error) {
-	reqURL := c.baseURL + path
-
-	var bodyReader io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
-		}
-		bodyReader = bytes.NewReader(b)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, reqURL, bodyReader)
+	req, err := c.buildRequest(ctx, method, path, body)
 	if err != nil {
-		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+		return nil, err
 	}
-
-	req.Header.Set("DD-API-KEY", c.apiKey)
-	req.Header.Set("DD-APPLICATION-KEY", c.appKey)
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -128,6 +138,27 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (json.Ra
 	}
 
 	return json.RawMessage(respBody), nil
+}
+
+func (c *Client) buildRequest(ctx context.Context, method, path string, body any) (*http.Request, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+		}
+		bodyReader = bytes.NewReader(b)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bodyReader)
+	if err != nil {
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
+	}
+
+	req.Header.Set("DD-API-KEY", c.apiKey)
+	req.Header.Set("DD-APPLICATION-KEY", c.appKey)
+	req.Header.Set("Content-Type", "application/json")
+	return req, nil
 }
 
 func doAndDecode[T any](c *Client, ctx context.Context, method, path string, body any) (*T, error) {
