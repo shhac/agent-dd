@@ -31,6 +31,23 @@ func toCompactLogs(data []api.LogData) []map[string]any {
 	return compact
 }
 
+func toFullLogEntries(data []api.LogData) []api.LogEntry {
+	entries := make([]api.LogEntry, len(data))
+	for i, d := range data {
+		entries[i] = api.LogEntry{
+			ID:         d.ID,
+			Timestamp:  d.Attributes.Timestamp,
+			Service:    d.Attributes.Service,
+			Status:     d.Attributes.Status,
+			Message:    d.Attributes.Message,
+			Host:       d.Attributes.Host,
+			Tags:       d.Attributes.Tags,
+			Attributes: d.Attributes.Attributes,
+		}
+	}
+	return entries
+}
+
 func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	logs := &cobra.Command{
 		Use:   "logs",
@@ -90,20 +107,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				pagination := shared.CursorPagination(resp.Cursor())
 
 				if full {
-					entries := make([]api.LogEntry, len(resp.Data))
-					for i, d := range resp.Data {
-						entries[i] = api.LogEntry{
-							ID:         d.ID,
-							Timestamp:  d.Attributes.Timestamp,
-							Service:    d.Attributes.Service,
-							Status:     d.Attributes.Status,
-							Message:    d.Attributes.Message,
-							Host:       d.Attributes.Host,
-							Tags:       d.Attributes.Tags,
-							Attributes: d.Attributes.Attributes,
-						}
-					}
-					shared.WritePaginatedList(entries, pagination, g.Format)
+					shared.WritePaginatedList(toFullLogEntries(resp.Data), pagination, g.Format)
 					return nil
 				}
 
