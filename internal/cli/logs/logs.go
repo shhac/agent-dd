@@ -138,13 +138,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 
-			q := query
-			if source != "" {
-				q += " source:" + source
-			}
-			if service != "" {
-				q += " service:" + service
-			}
+			q := buildTailQuery(query, source, service)
 			if !shared.RequireFlag("query", q, "") {
 				return nil
 			}
@@ -154,12 +148,8 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				from := time.Now().Add(-5 * time.Minute).Format(time.RFC3339)
 				to := time.Now().Format(time.RFC3339)
 
-				resp, err := client.SearchLogs(ctx, q, from, to, "timestamp", 20, "", "")
-				if err != nil {
+				if err := searchAndWriteTailLogs(ctx, client, w, q, from, to, 20); err != nil {
 					return err
-				}
-				for _, c := range toCompactLogs(resp.Data) {
-					_ = w.WriteItem(c)
 				}
 
 				if !follow {
@@ -176,12 +166,8 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					case <-ticker.C:
 						from = to
 						to = time.Now().Format(time.RFC3339)
-						resp, err = client.SearchLogs(ctx, q, from, to, "timestamp", 100, "", "")
-						if err != nil {
+						if err := searchAndWriteTailLogs(ctx, client, w, q, from, to, 100); err != nil {
 							return err
-						}
-						for _, c := range toCompactLogs(resp.Data) {
-							_ = w.WriteItem(c)
 						}
 					}
 				}
@@ -194,6 +180,28 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd.Flags().BoolVar(&follow, "follow", false, "Stream continuously")
 	cmd.Flags().IntVar(&interval, "interval", 5, "Poll interval in seconds (with --follow)")
 	parent.AddCommand(cmd)
+}
+
+func buildTailQuery(query, source, service string) string {
+	q := query
+	if source != "" {
+		q += " source:" + source
+	}
+	if service != "" {
+		q += " service:" + service
+	}
+	return q
+}
+
+func searchAndWriteTailLogs(ctx context.Context, client *api.Client, w *output.NDJSONWriter, query, from, to string, limit int) error {
+	resp, err := client.SearchLogs(ctx, query, from, to, "timestamp", limit, "", "")
+	if err != nil {
+		return err
+	}
+	for _, c := range toCompactLogs(resp.Data) {
+		_ = w.WriteItem(c)
+	}
+	return nil
 }
 
 func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
