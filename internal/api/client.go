@@ -44,6 +44,53 @@ func NewTestClient(baseURL, apiKey, appKey string) *Client {
 	}
 }
 
+// RawRequest is the escape hatch behind `agent-dd api`: it issues an arbitrary
+// request through the same credential/site resolution and error classification
+// as every typed command, returning the response body verbatim. `path` is
+// relative to the site's `/api` base (e.g. "/v2/spans/analytics/aggregate").
+// `body` may be nil, a json.RawMessage, or any JSON-marshalable value.
+func (c *Client) RawRequest(ctx context.Context, method, path string, body any) (json.RawMessage, error) {
+	return c.do(ctx, method, path, body)
+}
+
+// RequestPreview describes the request RawRequest would send, with credentials
+// redacted. It backs `agent-dd api --print-request` so callers can confirm
+// exactly what would hit Datadog (and tell a CLI construction bug apart from a
+// genuine API rejection) without sending anything or ever seeing the keys.
+type RequestPreview struct {
+	Method  string            `json:"method"`
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
+	Body    json.RawMessage   `json:"body,omitempty"`
+}
+
+// PreviewRequest builds a redacted preview of the request for the given inputs
+// without sending it. Header values for the credential headers are masked.
+func (c *Client) PreviewRequest(method, path string, body json.RawMessage) RequestPreview {
+	headers := map[string]string{
+		"DD-API-KEY":         redactSecret(c.apiKey),
+		"DD-APPLICATION-KEY": redactSecret(c.appKey),
+	}
+	if len(body) > 0 {
+		headers["Content-Type"] = "application/json"
+	}
+	return RequestPreview{
+		Method:  method,
+		URL:     c.baseURL + path,
+		Headers: headers,
+		Body:    body,
+	}
+}
+
+// redactSecret masks a credential, revealing nothing but its presence and
+// length so a preview can confirm a key is set without leaking it.
+func redactSecret(s string) string {
+	if s == "" {
+		return "(unset)"
+	}
+	return fmt.Sprintf("(set, %d chars)", len(s))
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body any) (json.RawMessage, error) {
 	reqURL := c.baseURL + path
 

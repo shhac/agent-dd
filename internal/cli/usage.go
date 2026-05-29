@@ -65,6 +65,11 @@ SLOs
   agent-dd slo get <id>
   agent-dd slo history <id> --from <time> --to <time>
 
+RAW API (escape hatch for endpoints the typed commands don't wrap)
+  agent-dd api [METHOD] <path> [--body <json|@file|@->] [--query k=v] [--allow-write] [--print-request]
+  # e.g. server-side span p95: agent-dd api POST /v2/spans/analytics/aggregate --body @agg.json
+  # reads (GET/HEAD, POST to /search|/aggregate) run by default; other writes need --allow-write
+
 TIME FORMATS
   Relative: now-15m, now-1h, now-1d, now-7d
   Absolute: 2024-01-15T10:00:00Z (RFC3339)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/shhac/agent-dd/internal/cli/apicmd"
 	"github.com/shhac/agent-dd/internal/cli/events"
 	"github.com/shhac/agent-dd/internal/cli/hosts"
 	"github.com/shhac/agent-dd/internal/cli/incidents"
@@ -55,6 +56,7 @@ func newRootCmd(version string) *cobra.Command {
 	traces.Register(root, allGlobals)
 	incidents.Register(root, allGlobals)
 	slo.Register(root, allGlobals)
+	apicmd.Register(root, allGlobals)
 
 	return root
 }
