@@ -26,6 +26,32 @@ type TraceSearchResponse struct {
 	Meta *SearchMeta `json:"meta,omitempty"`
 }
 
+type TraceSearchRequest struct {
+	Data TraceSearchData `json:"data"`
+}
+
+type TraceSearchData struct {
+	Type       string                `json:"type"`
+	Attributes TraceSearchAttributes `json:"attributes"`
+}
+
+type TraceSearchAttributes struct {
+	Filter TraceFilter `json:"filter"`
+	Sort   string      `json:"sort,omitempty"`
+	Page   *TracePage  `json:"page,omitempty"`
+}
+
+type TraceFilter struct {
+	Query string `json:"query"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+}
+
+type TracePage struct {
+	Limit  int    `json:"limit,omitempty"`
+	Cursor string `json:"cursor,omitempty"`
+}
+
 // Cursor returns the pagination cursor from the response, or empty if none.
 func (r *TraceSearchResponse) Cursor() string {
 	return CursorFrom(r.Meta)
@@ -69,36 +95,26 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 		filterQuery = strings.TrimSpace("service:" + service + " " + query)
 	}
 
-	// /api/v2/spans/events/search requires the JSON:API envelope:
-	// {"data": {"type": "search_request", "attributes": {...}}}.
-	// A flat {filter:...} body is rejected with HTTP 400 and the
-	// message "document is missing required top-level members".
-	attrs := map[string]any{
-		"filter": map[string]any{
-			"query": filterQuery,
-			"from":  from,
-			"to":    to,
+	req := TraceSearchRequest{
+		Data: TraceSearchData{
+			Type: "search_request",
+			Attributes: TraceSearchAttributes{
+				Filter: TraceFilter{Query: filterQuery, From: from, To: to},
+				Sort:   "-timestamp",
+			},
 		},
-		"sort": "-timestamp",
 	}
-	page := map[string]any{}
 	if limit > 0 {
-		page["limit"] = limit
+		req.Data.Attributes.Page = &TracePage{Limit: limit}
 	}
 	if cursor != "" {
-		page["cursor"] = cursor
-	}
-	if len(page) > 0 {
-		attrs["page"] = page
-	}
-	body := map[string]any{
-		"data": map[string]any{
-			"type":       "search_request",
-			"attributes": attrs,
-		},
+		if req.Data.Attributes.Page == nil {
+			req.Data.Attributes.Page = &TracePage{}
+		}
+		req.Data.Attributes.Page.Cursor = cursor
 	}
 
-	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", body)
+	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", req)
 }
 
 type serviceListResponse struct {
