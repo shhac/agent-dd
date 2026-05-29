@@ -220,5 +220,3 @@ func ParseIntArg(noun, value string) (int, bool) {
 	}
 	return id, true
 }
-
-type GlobalsFunc = func() *GlobalFlags
