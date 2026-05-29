@@ -118,15 +118,7 @@ func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, clien
 	return nil
 }
 
-func ToAnySlice[T any](s []T) []any {
-	result := make([]any, len(s))
-	for i, v := range s {
-		result[i] = v
-	}
-	return result
-}
-
-func WritePaginatedList(items []any, pagination *output.Pagination, format string) {
+func WritePaginatedList[T any](items []T, pagination *output.Pagination, format string) {
 	WritePaginatedListWithMeta(items, pagination, nil, format)
 }
 
@@ -135,7 +127,7 @@ func WritePaginatedList(items []any, pagination *output.Pagination, format strin
 // the data rows; the convention is to use an `@`-prefix on the key (e.g.
 // "@counts") so consumers can filter the row from the data stream. In JSON
 // mode the meta keys are merged into the top-level envelope alongside `data`.
-func WritePaginatedListWithMeta(items []any, pagination *output.Pagination, meta map[string]any, format string) {
+func WritePaginatedListWithMeta[T any](items []T, pagination *output.Pagination, meta map[string]any, format string) {
 	f := output.ResolveFormat(format, output.FormatNDJSON)
 	if f == output.FormatNDJSON {
 		w := output.NewNDJSONWriter(os.Stdout)

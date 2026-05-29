@@ -44,7 +44,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(events), nil, g.Format)
+				shared.WritePaginatedList(events, nil, g.Format)
 				return nil
 			})
 		},

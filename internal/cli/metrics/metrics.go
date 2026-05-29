@@ -61,7 +61,7 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					}
 					compact[i] = row
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(compact, nil, g.Format)
 				return nil
 			})
 		},
@@ -85,7 +85,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(resp.Data), nil, g.Format)
+				shared.WritePaginatedList(resp.Data, nil, g.Format)
 				return nil
 			})
 		},

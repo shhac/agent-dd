@@ -49,7 +49,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if resp.TotalMatching > resp.TotalReturned {
 					pagination = &output.Pagination{HasMore: true, TotalItems: resp.TotalMatching}
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), pagination, g.Format)
+				shared.WritePaginatedList(compact, pagination, g.Format)
 				return nil
 			})
 		},

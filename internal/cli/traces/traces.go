@@ -119,7 +119,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if !full && len(spans) > 0 {
 					meta = map[string]any{output.MetaKeySkipped: compactSpanSkippedFields}
 				}
-				shared.WritePaginatedListWithMeta(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), meta, g.Format)
+				shared.WritePaginatedListWithMeta(spans, shared.CursorPagination(resp.Cursor()), meta, g.Format)
 				return nil
 			})
 		},
@@ -147,7 +147,7 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 				if err != nil {
 					return err
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(services), nil, g.Format)
+				shared.WritePaginatedList(services, nil, g.Format)
 				return nil
 			})
 		},

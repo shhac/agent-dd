@@ -48,7 +48,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						compact[i]["error_budget_remaining"] = s.Status.ErrorBudgetRemaining
 					}
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(compact, nil, g.Format)
 				return nil
 			})
 		},

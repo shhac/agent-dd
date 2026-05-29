@@ -103,7 +103,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 							Attributes: d.Attributes.Attributes,
 						}
 					}
-					shared.WritePaginatedList(shared.ToAnySlice(entries), pagination, g.Format)
+					shared.WritePaginatedList(entries, pagination, g.Format)
 					return nil
 				}
 
@@ -111,7 +111,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if len(resp.Data) > 0 {
 					meta = map[string]any{output.MetaKeySkipped: compactLogSkippedFields}
 				}
-				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactLogs(resp.Data)), pagination, meta, g.Format)
+				shared.WritePaginatedListWithMeta(toCompactLogs(resp.Data), pagination, meta, g.Format)
 				return nil
 			})
 		},
@@ -223,7 +223,7 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(resp.Data.Buckets), nil, g.Format)
+				shared.WritePaginatedList(resp.Data.Buckets, nil, g.Format)
 				return nil
 			})
 		},

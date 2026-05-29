@@ -59,11 +59,11 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				}
 
 				if full {
-					shared.WritePaginatedList(shared.ToAnySlice(monitors), nil, g.Format)
+					shared.WritePaginatedList(monitors, nil, g.Format)
 					return nil
 				}
 
-				shared.WritePaginatedList(shared.ToAnySlice(toCompactMonitors(monitors)), nil, g.Format)
+				shared.WritePaginatedList(toCompactMonitors(monitors), nil, g.Format)
 				return nil
 			})
 		},
@@ -119,7 +119,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if resp.Counts != nil {
 					meta = map[string]any{output.MetaKeyCounts: resp.Counts}
 				}
-				shared.WritePaginatedListWithMeta(shared.ToAnySlice(toCompactMonitors(resp.Monitors)), nil, meta, g.Format)
+				shared.WritePaginatedListWithMeta(toCompactMonitors(resp.Monitors), nil, meta, g.Format)
 				return nil
 			})
 		},
