@@ -86,6 +86,9 @@ func (c *Client) PreviewRequest(method, path string, body json.RawMessage) Reque
 
 	headers := map[string]string{}
 	for key, vals := range req.Header {
+		if key == "Dd-Api-Key" || key == "Dd-Application-Key" {
+			continue
+		}
 		if len(vals) == 0 {
 			continue
 		}
