@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/shhac/lib-agent-cli/xdg"
 )
 
 type Config struct {
@@ -42,11 +44,7 @@ func ConfigDir() string {
 	if overrideDir != "" {
 		return overrideDir
 	}
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "agent-dd")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "agent-dd")
+	return xdg.ConfigDir("agent-dd")
 }
 
 func configPath() string {
