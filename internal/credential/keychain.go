@@ -2,16 +2,20 @@ package credential
 
 import (
 	"encoding/json"
-	"fmt"
-	"os/exec"
-	"runtime"
+
+	"github.com/shhac/lib-agent-cli/creds"
 )
 
 const keychainService = "app.paulie.agent-dd"
 
+func keychain() *creds.Keychain {
+	return creds.NewKeychain(keychainService)
+}
+
 func keychainStore(name, apiKey, appKey string) error {
-	if runtime.GOOS != "darwin" {
-		return fmt.Errorf("keychain not available")
+	kc := keychain()
+	if !kc.Available() {
+		return creds.ErrKeychainUnavailable
 	}
 
 	data, _ := json.Marshal(map[string]string{
@@ -19,36 +23,31 @@ func keychainStore(name, apiKey, appKey string) error {
 		"app_key": appKey,
 	})
 
-	_ = exec.Command("security", "delete-generic-password", "-s", keychainService, "-a", name).Run()
-
-	return exec.Command("security", "add-generic-password",
-		"-s", keychainService, "-a", name, "-w", string(data),
-		"-U",
-	).Run()
+	return kc.Set(name, string(data))
 }
 
 func keychainGet(name string) (apiKey, appKey string, err error) {
-	if runtime.GOOS != "darwin" {
-		return "", "", fmt.Errorf("keychain not available")
+	kc := keychain()
+	if !kc.Available() {
+		return "", "", creds.ErrKeychainUnavailable
 	}
 
-	out, err := exec.Command("security", "find-generic-password",
-		"-s", keychainService, "-a", name, "-w",
-	).Output()
-	if err != nil {
-		return "", "", err
+	out, ok := kc.Get(name)
+	if !ok {
+		return "", "", creds.ErrKeychainUnavailable
 	}
 
 	var keys map[string]string
-	if err := json.Unmarshal(out, &keys); err != nil {
+	if err := json.Unmarshal([]byte(out), &keys); err != nil {
 		return "", "", err
 	}
 	return keys["api_key"], keys["app_key"], nil
 }
 
 func keychainDelete(name string) {
-	if runtime.GOOS != "darwin" {
+	kc := keychain()
+	if !kc.Available() {
 		return
 	}
-	_ = exec.Command("security", "delete-generic-password", "-s", keychainService, "-a", name).Run()
+	_ = kc.Delete(name)
 }
