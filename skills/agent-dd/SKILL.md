@@ -21,7 +21,7 @@ Investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs. Triage
 
 ### Investigation workflow
 
-1. **Identify the signal**: `monitors list --status alert` or `incidents list --status active`
+1. **Identify the signal**: `monitors list --status alert` or `incidents list --state active`
 2. **Scope the time window**: `--from now-1h` (or broader)
 3. **Find the hotspot**: `logs facets` to see which services/hosts/statuses dominate
 4. **Gather context**: Pull logs, metrics, and traces for the affected service
@@ -50,7 +50,7 @@ agent-dd logs search --query "service:web status:error" --from now-1h
 agent-dd logs facets --query "status:error" --from now-1h
 agent-dd metrics query --query "avg:system.cpu.user{host:web-1}" --from now-1h --to now
 agent-dd traces search --service my-api --from now-30m
-agent-dd incidents list --status active
+agent-dd incidents list --state active
 agent-dd slo list
 agent-dd hosts list --tag "env:production"
 
@@ -58,7 +58,7 @@ agent-dd hosts list --tag "env:production"
 agent-dd monitors mute <id> --reason "investigating" --end now+1h
 agent-dd monitors unmute <id>
 agent-dd incidents create --title "Elevated error rate" --severity SEV-3
-agent-dd incidents update <id> --status stable
+agent-dd incidents update <id> --state stable
 
 # Discovery
 agent-dd metrics list --search "system.cpu"

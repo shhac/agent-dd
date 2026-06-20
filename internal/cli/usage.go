@@ -77,8 +77,9 @@ TIME FORMATS
 
 GLOBAL FLAGS
   -o, --org <alias>    Organization alias (or DD_ORG env, or DD_API_KEY + DD_APP_KEY)
-  --format json|yaml|jsonl   (default: jsonl for lists, json for single items)
-  --timeout <ms>
+  -d, --debug          Log HTTP trace ([debug] METHOD URL) to stderr
+  -f, --format json|yaml|jsonl   (default: jsonl for lists, json for single items)
+  -t, --timeout <ms>
 
 Per-domain details: agent-dd <domain> usage
 `
