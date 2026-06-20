@@ -2,16 +2,12 @@ package events
 
 import (
 	"context"
-	"os"
-	"strconv"
 
 	libcli "github.com/shhac/lib-agent-cli/cli"
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
-	"github.com/shhac/agent-dd/internal/output"
 )
 
 func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
@@ -60,23 +56,16 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get event details",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get <id>...",
+		Short: "Get event details (one or more IDs)",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g := globals()
-			id, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid event ID %q", args[0]))
-				return nil
-			}
-			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
-				event, err := client.GetEvent(ctx, id)
+			return shared.GetEntities(globals(), args, func(ctx context.Context, client *api.Client, id string) (any, error) {
+				n, err := shared.ParseIntID("event ID", id)
 				if err != nil {
-					return err
+					return nil, err
 				}
-				shared.WriteItem(event, g.Format)
-				return nil
+				return client.GetEvent(ctx, n)
 			})
 		},
 	}

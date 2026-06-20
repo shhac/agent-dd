@@ -74,15 +74,14 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get incident details",
-		Args:  cobra.ExactArgs(1),
+		Use:   "get <id>...",
+		Short: "Get incident details (one or more IDs)",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g := globals()
-			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
-				doc, err := client.GetIncident(ctx, args[0])
+			return shared.GetEntities(globals(), args, func(ctx context.Context, client *api.Client, id string) (any, error) {
+				doc, err := client.GetIncident(ctx, id)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				// Surface the resolved commander handle alongside the raw
 				// incident so callers don't have to walk the included array.
@@ -90,8 +89,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if h := doc.CommanderHandle(); h != "" {
 					out["commander"] = h
 				}
-				shared.WriteItem(out, g.Format)
-				return nil
+				return out, nil
 			})
 		},
 	}

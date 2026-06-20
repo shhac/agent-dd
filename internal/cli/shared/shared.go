@@ -124,6 +124,21 @@ func WithClient(orgAlias string, timeout int, debug bool, fn func(ctx context.Co
 	return fn(ctx, client)
 }
 
+// GetEntities runs the family's multi-capable get for the dd domain: it sets up
+// one client, then resolves each id through getOne and streams the result per
+// the shared get contract (NDJSON by default — one record or {"@unresolved":…}
+// per id in input order; item-level misses stay on stdout, command-level
+// failures bubble to the single sink). getOne returns the record for an id, or
+// a classified *agenterrors.APIError (a lib-agent-output *Error) so a 404/bad
+// input becomes an @unresolved record rather than aborting the batch.
+func GetEntities(g *GlobalFlags, args []string, getOne func(ctx context.Context, client *api.Client, id string) (any, error)) error {
+	return WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
+		return libcli.EntityGet(os.Stdout, g.Format, args, func(id string) (any, error) {
+			return getOne(ctx, client, id)
+		})
+	})
+}
+
 func WritePaginatedList[T any](items []T, pagination *output.Pagination, format string) {
 	WritePaginatedListWithMeta(items, pagination, nil, format)
 }
@@ -225,4 +240,15 @@ func ParseIntArg(noun, value string) (int, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+// ParseIntID parses an integer id argument and returns a classified
+// fixable_by:agent error when it isn't a number — suitable for an EntityGet
+// resolver, where a bad id should become an @unresolved record, not a crash.
+func ParseIntID(noun, value string) (int64, error) {
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, agenterrors.Newf(agenterrors.FixableByAgent, "invalid %s %q — must be an integer", noun, value)
+	}
+	return id, nil
 }
