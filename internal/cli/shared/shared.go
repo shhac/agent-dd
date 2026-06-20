@@ -95,6 +95,11 @@ func NewClientFromOrg(orgAlias string) (*api.Client, error) {
 
 var ClientFactory func() (*api.Client, error)
 
+// WithClient resolves a client (via the test factory or the org's credentials)
+// and runs fn with it. Errors are returned unrendered: the top-level Execute
+// sink renders them once via output.WriteError, so rendering here too would
+// double-print. Pre-flight validation guards that emit a tailored error should
+// still render themselves and return nil — they never reach this path.
 func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, client *api.Client) error) error {
 	ctx, cancel := MakeContext(timeout)
 	defer cancel()
@@ -107,15 +112,10 @@ func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, clien
 		client, err = NewClientFromOrg(orgAlias)
 	}
 	if err != nil {
-		output.WriteError(os.Stderr, err)
 		return err
 	}
 
-	if err := fn(ctx, client); err != nil {
-		output.WriteError(os.Stderr, err)
-		return err
-	}
-	return nil
+	return fn(ctx, client)
 }
 
 func WritePaginatedList[T any](items []T, pagination *output.Pagination, format string) {

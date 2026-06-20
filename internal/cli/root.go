@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -17,6 +16,7 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/cli/slo"
 	"github.com/shhac/agent-dd/internal/cli/traces"
+	"github.com/shhac/agent-dd/internal/output"
 )
 
 var (
@@ -61,10 +61,18 @@ func newRootCmd(version string) *cobra.Command {
 	return root
 }
 
+// Execute runs the root command and is the single sink for any error that
+// bubbles out of it — both cobra's own usage errors (unknown command, bad
+// flag, failed Args validation) and any command error returned without being
+// pre-rendered. Rendering here via output.WriteError keeps the invariant that
+// no error reaches stderr as plain text: WriteError wraps a non-*Error as
+// FixableByAgent, so even raw cobra errors emit the structured
+// {error,fixable_by,hint} shape. Commands that pre-render (validation guards)
+// return nil so they don't reach this sink twice.
 func Execute(version string) error {
 	err := newRootCmd(version).Execute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		output.WriteError(os.Stderr, err)
 	}
 	return err
 }
