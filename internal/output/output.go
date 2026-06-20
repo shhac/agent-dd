@@ -1,19 +1,22 @@
 // Package output re-exports the shared output contract from lib-agent-output,
 // keeping the internal/output import path while the wire mechanism (format
-// parsing, JSON/YAML encoding, error rendering) lives in one place. What stays
-// local is agent-dd policy: the null-pruning Print signature, the convenience
-// ResolveFormat that swallows parse errors into the default, and the
-// Datadog-shaped pagination trailer. (Migration shim.)
+// parsing, JSON encoding, error rendering) lives in one place. YAML encoding is
+// supplied by the shared lib-agent-cli/yaml encoder (blank-imported below).
+// What stays local is agent-dd policy: the null-pruning Print signature, the
+// convenience ResolveFormat that swallows parse errors into the default, and
+// the Datadog-shaped pagination trailer. (Migration shim.)
 package output
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"os"
 
 	out "github.com/shhac/lib-agent-output"
-	"gopkg.in/yaml.v3"
+
+	// Blank-imported for its init(): registers the shared YAML encoder for
+	// FormatYAML, so agent-dd gets `--format yaml` without copying the encoder.
+	_ "github.com/shhac/lib-agent-cli/yaml"
 )
 
 // Format and its values come from the shared contract; ParseFormat is therefore
@@ -30,22 +33,6 @@ var (
 	ParseFormat = out.ParseFormat
 	WriteError  = out.WriteError
 )
-
-// init registers agent-dd's YAML encoder with lib-agent-output, so YAML support
-// (and its yaml.v3 dependency) stays in this CLI while the core library remains
-// dependency-free.
-func init() {
-	out.RegisterEncoder(out.FormatYAML, func(v any) ([]byte, error) {
-		var buf bytes.Buffer
-		enc := yaml.NewEncoder(&buf)
-		enc.SetIndent(2)
-		if err := enc.Encode(v); err != nil {
-			return nil, err
-		}
-		_ = enc.Close()
-		return buf.Bytes(), nil
-	})
-}
 
 // ResolveFormat returns the parsed flag value, or defaultFormat when the flag is
 // empty or unparseable. This keeps agent-dd's single-return signature (the
