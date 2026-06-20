@@ -39,7 +39,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				events, err := client.ListEvents(ctx, fromTime.Unix(), toTime.Unix(), source, shared.SingleTag(tag))
 				if err != nil {
 					return err
@@ -68,7 +68,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid event ID %q", args[0]))
 				return nil
 			}
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				event, err := client.GetEvent(ctx, id)
 				if err != nil {
 					return err

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
@@ -24,6 +25,10 @@ type Client struct {
 	apiKey  string
 	appKey  string
 	http    *http.Client
+
+	// Debug, when set, logs one line per request (method + redacted URL) to
+	// stderr before it is sent. Wired from the global --debug flag.
+	Debug bool
 }
 
 func NewClient(apiKey, appKey, site string) *Client {
@@ -123,6 +128,10 @@ func (c *Client) do(ctx context.Context, method, path string, body any) (json.Ra
 	req, err := c.buildRequest(ctx, method, path, body)
 	if err != nil {
 		return nil, err
+	}
+
+	if c.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] %s %s\n", method, c.baseURL+path)
 	}
 
 	resp, err := c.http.Do(req)

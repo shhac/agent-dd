@@ -52,7 +52,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "List monitors",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				monitors, err := client.ListMonitors(ctx, search, shared.SingleTag(tag), status)
 				if err != nil {
 					return err
@@ -86,7 +86,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			if !ok {
 				return nil
 			}
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				monitor, err := client.GetMonitor(ctx, id)
 				if err != nil {
 					return err
@@ -110,7 +110,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			if !shared.RequireFlag("query", query, "") {
 				return nil
 			}
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				resp, err := client.SearchMonitors(ctx, query, status)
 				if err != nil {
 					return err
@@ -153,7 +153,7 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				endEpoch = t.Unix()
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				downtime, err := client.CreateDowntime(ctx, id, endEpoch, reason)
 				if err != nil {
 					return err
@@ -183,7 +183,7 @@ func registerUnmute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			if !ok {
 				return nil
 			}
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				downtimes, err := client.ListActiveDowntimes(ctx, id)
 				if err != nil {
 					return err

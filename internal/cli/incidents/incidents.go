@@ -35,7 +35,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "List incidents",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				resp, err := client.ListIncidents(ctx, status)
 				if err != nil {
 					return err
@@ -77,7 +77,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				doc, err := client.GetIncident(ctx, args[0])
 				if err != nil {
 					return err
@@ -112,7 +112,7 @@ func registerCreate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				incident, err := client.CreateIncident(ctx, title, severity, commanderUUID, customerImpacted)
 				if err != nil {
 					return err
@@ -142,7 +142,7 @@ func registerUpdate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				output.WriteError(os.Stderr, agenterrors.New("at least --state or --severity is required", agenterrors.FixableByAgent))
 				return nil
 			}
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				incident, err := client.UpdateIncident(ctx, args[0], state, severity)
 				if err != nil {
 					return err

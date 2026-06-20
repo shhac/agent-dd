@@ -31,7 +31,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "List SLOs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				slos, err := client.ListSLOs(ctx, search, shared.SingleTag(tag))
 				if err != nil {
 					return err
@@ -65,7 +65,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				s, err := client.GetSLO(ctx, args[0])
 				if err != nil {
 					return err
@@ -97,7 +97,7 @@ func registerHistory(parent *cobra.Command, globals func() *shared.GlobalFlags) 
 				return nil
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				history, err := client.GetSLOHistory(ctx, args[0], fromTime.Unix(), toTime.Unix())
 				if err != nil {
 					return err

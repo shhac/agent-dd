@@ -73,7 +73,7 @@ Examples:
 				return nil
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				if printRequest {
 					output.Print(client.PreviewRequest(method, path, body), resolveFormat(g.Format), false)
 					return nil

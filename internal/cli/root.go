@@ -1,8 +1,7 @@
 package cli
 
 import (
-	"os"
-
+	libcli "github.com/shhac/lib-agent-cli/cli"
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/cli/apicmd"
@@ -19,32 +18,23 @@ import (
 	"github.com/shhac/agent-dd/internal/output"
 )
 
-var (
-	flagOrg     string
-	flagFormat  string
-	flagTimeout int
-)
-
-func allGlobals() *shared.GlobalFlags {
-	return &shared.GlobalFlags{
-		Org:     flagOrg,
-		Format:  flagFormat,
-		Timeout: flagTimeout,
-	}
-}
-
 func newRootCmd(version string) *cobra.Command {
-	root := &cobra.Command{
+	g := &shared.GlobalFlags{}
+
+	root := libcli.NewRoot(libcli.Options{
 		Use:           "agent-dd",
 		Short:         "Datadog triage CLI for AI agents",
 		Version:       version,
-		SilenceUsage:  true,
-		SilenceErrors: true,
-	}
+		Globals:       &g.Globals,
+		DefaultFormat: output.FormatNDJSON,
+		UnknownHint:   "run 'agent-dd usage' to see the available domains",
+	})
 
-	root.PersistentFlags().StringVarP(&flagOrg, "org", "o", "", "Organization alias (or set DD_ORG, or DD_API_KEY + DD_APP_KEY)")
-	root.PersistentFlags().StringVarP(&flagFormat, "format", "f", "", "Output format: json, yaml, jsonl")
-	root.PersistentFlags().IntVarP(&flagTimeout, "timeout", "t", 0, "Request timeout in milliseconds")
+	// --org is Datadog's organization selector — a domain flag, kept as-is. The
+	// shared --format/--timeout/--debug are bound by NewRoot via Globals.
+	root.PersistentFlags().StringVarP(&g.Org, "org", "o", "", "Organization alias (or set DD_ORG, or DD_API_KEY + DD_APP_KEY)")
+
+	allGlobals := func() *shared.GlobalFlags { return g }
 
 	registerUsageCommand(root)
 	org.Register(root)
@@ -61,18 +51,12 @@ func newRootCmd(version string) *cobra.Command {
 	return root
 }
 
-// Execute runs the root command and is the single sink for any error that
-// bubbles out of it — both cobra's own usage errors (unknown command, bad
-// flag, failed Args validation) and any command error returned without being
-// pre-rendered. Rendering here via output.WriteError keeps the invariant that
-// no error reaches stderr as plain text: WriteError wraps a non-*Error as
-// FixableByAgent, so even raw cobra errors emit the structured
-// {error,fixable_by,hint} shape. Commands that pre-render (validation guards)
-// return nil so they don't reach this sink twice.
-func Execute(version string) error {
-	err := newRootCmd(version).Execute()
-	if err != nil {
-		output.WriteError(os.Stderr, err)
-	}
-	return err
+// Run builds the root command and hands it to libcli.Run, the single error
+// sink: any error that bubbles out — cobra's own usage errors (unknown command,
+// bad flag, failed Args validation) or a command error returned without being
+// pre-rendered — is written once to stderr in the structured {error,fixable_by,
+// hint} contract, then the process exits 1. Commands that pre-render their own
+// validation errors return nil, so they never reach this sink twice.
+func Run(version string) {
+	libcli.Run(newRootCmd(version))
 }

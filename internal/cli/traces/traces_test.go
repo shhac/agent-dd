@@ -11,13 +11,14 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/cli/traces"
 	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
+	libcli "github.com/shhac/lib-agent-cli/cli"
 )
 
 func newCmd(t *testing.T) *cobra.Command {
 	t.Helper()
 	mockddtest.InstallClientFactory(t)
 	root := &cobra.Command{Use: "agent-dd"}
-	g := &shared.GlobalFlags{Format: "ndjson"}
+	g := &shared.GlobalFlags{Globals: libcli.Globals{Format: "ndjson"}}
 	traces.Register(root, func() *shared.GlobalFlags { return g })
 	return root
 }
@@ -111,7 +112,7 @@ func TestTracesSearchDefaultEmitsIDsAndSkippedMeta(t *testing.T) {
 func TestTracesSearchRejectsLimitOverMax(t *testing.T) {
 	mockddtest.InstallClientFactory(t)
 	root := &cobra.Command{Use: "agent-dd"}
-	g := &shared.GlobalFlags{Format: "ndjson"}
+	g := &shared.GlobalFlags{Globals: libcli.Globals{Format: "ndjson"}}
 	traces.Register(root, func() *shared.GlobalFlags { return g })
 
 	// The guard must short-circuit before the client is ever resolved.

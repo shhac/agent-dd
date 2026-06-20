@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	libcli "github.com/shhac/lib-agent-cli/cli"
+
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/config"
 	"github.com/shhac/agent-dd/internal/credential"
@@ -16,10 +18,13 @@ import (
 	"github.com/shhac/agent-dd/internal/output"
 )
 
+// GlobalFlags carries the persistent flags shared by every command. The
+// family's --format/--timeout/--debug live in the embedded libcli.Globals
+// (Format, TimeoutMS, Debug); --org is Datadog's own domain flag.
 type GlobalFlags struct {
-	Org     string
-	Format  string
-	Timeout int
+	libcli.Globals // Format, TimeoutMS, Debug
+
+	Org string
 }
 
 func MakeContext(timeoutMs int) (context.Context, context.CancelFunc) {
@@ -100,7 +105,7 @@ var ClientFactory func() (*api.Client, error)
 // sink renders them once via output.WriteError, so rendering here too would
 // double-print. Pre-flight validation guards that emit a tailored error should
 // still render themselves and return nil — they never reach this path.
-func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, client *api.Client) error) error {
+func WithClient(orgAlias string, timeout int, debug bool, fn func(ctx context.Context, client *api.Client) error) error {
 	ctx, cancel := MakeContext(timeout)
 	defer cancel()
 
@@ -114,6 +119,7 @@ func WithClient(orgAlias string, timeout int, fn func(ctx context.Context, clien
 	if err != nil {
 		return err
 	}
+	client.Debug = debug
 
 	return fn(ctx, client)
 }

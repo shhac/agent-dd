@@ -13,6 +13,7 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/logs"
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
+	libcli "github.com/shhac/lib-agent-cli/cli"
 )
 
 func TestLogsSearch(t *testing.T) {
@@ -171,7 +172,7 @@ func TestLogsAggregate(t *testing.T) {
 func TestLogsSearchRejectsLimitOverMax(t *testing.T) {
 	mockddtest.InstallClientFactory(t)
 	root := &cobra.Command{Use: "agent-dd"}
-	g := &shared.GlobalFlags{Format: "ndjson"}
+	g := &shared.GlobalFlags{Globals: libcli.Globals{Format: "ndjson"}}
 	logs.Register(root, func() *shared.GlobalFlags { return g })
 
 	shared.ClientFactory = func() (*api.Client, error) {

@@ -6,11 +6,13 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/shhac/agent-dd/internal/output"
 )
 
 // captureStderr swaps os.Stderr for the duration of fn and returns what was
-// written. Execute renders to the real os.Stderr, so the root sink can only be
-// exercised through the package-level entry point this way.
+// written. The root sink renders to the real os.Stderr, so it can only be
+// exercised by capturing the pipe this way.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
@@ -34,19 +36,25 @@ func captureStderr(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// Execute is the single error sink: a cobra usage error (one cobra produces
+// libcli.Run is the single error sink: a cobra usage error (one cobra produces
 // itself, not one a command pre-renders) must reach stderr as a structured
-// {error,fixable_by} row exactly once, never as plain text.
-func TestExecuteRendersUsageErrorStructuredOnce(t *testing.T) {
-	origArgs := os.Args
-	os.Args = []string{"agent-dd", "definitely-not-a-command"}
-	defer func() { os.Args = origArgs }()
+// {error,fixable_by} row exactly once, never as plain text. Run itself calls
+// os.Exit, so this drives the same root command + output.WriteError it does,
+// minus the exit, to assert the render shape.
+func TestRunRendersUsageErrorStructuredOnce(t *testing.T) {
+	root := newRootCmd("test")
+	root.SetArgs([]string{"definitely-not-a-command"})
 
 	var execErr error
-	stderr := captureStderr(t, func() { execErr = Execute("test") })
+	stderr := captureStderr(t, func() {
+		execErr = root.Execute()
+		if execErr != nil {
+			output.WriteError(os.Stderr, execErr)
+		}
+	})
 
 	if execErr == nil {
-		t.Fatal("expected Execute to return the usage error")
+		t.Fatal("expected the root command to return the usage error")
 	}
 
 	lines := nonEmptyLines(stderr)

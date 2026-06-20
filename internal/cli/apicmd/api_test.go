@@ -15,11 +15,12 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/apicmd"
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
+	libcli "github.com/shhac/lib-agent-cli/cli"
 )
 
 func newCmd() *cobra.Command {
 	root := &cobra.Command{Use: "agent-dd"}
-	g := &shared.GlobalFlags{Format: "json"}
+	g := &shared.GlobalFlags{Globals: libcli.Globals{Format: "json"}}
 	apicmd.Register(root, func() *shared.GlobalFlags { return g })
 	return root
 }

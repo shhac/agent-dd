@@ -95,7 +95,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				limit = 50
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				resp, err := client.SearchLogs(ctx, query,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),
@@ -147,7 +147,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				w := output.NewNDJSONWriter(os.Stdout)
 				from := time.Now().Add(-5 * time.Minute).Format(time.RFC3339)
 				to := time.Now().Format(time.RFC3339)
@@ -227,7 +227,7 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 			groupBy := []string{"service", "status", "host"}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				resp, err := client.AggregateLogs(ctx, query,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),

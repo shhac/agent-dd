@@ -199,7 +199,8 @@ func registerTest(parent *cobra.Command) {
 		Short: "Test credentials against Datadog API",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			orgFlag, _ := cmd.Flags().GetString("org")
-			return shared.WithClient(orgFlag, 0, func(ctx context.Context, client *api.Client) error {
+			debug, _ := cmd.Flags().GetBool("debug")
+			return shared.WithClient(orgFlag, 0, debug, func(ctx context.Context, client *api.Client) error {
 				if err := client.Validate(ctx); err != nil {
 					return err
 				}

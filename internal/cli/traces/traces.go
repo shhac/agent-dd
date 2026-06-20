@@ -104,7 +104,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				limit = 50
 			}
 
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				resp, err := client.SearchTraces(ctx, query, service,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),
@@ -142,7 +142,7 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 		Short: "List APM services",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+			return shared.WithClient(g.Org, g.TimeoutMS, g.Debug, func(ctx context.Context, client *api.Client) error {
 				services, err := client.ListServices(ctx, env, search)
 				if err != nil {
 					return err
