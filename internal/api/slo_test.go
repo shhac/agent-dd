@@ -103,9 +103,11 @@ func TestGetSLO(t *testing.T) {
 }
 
 // /v1/slo/{id}/history returns:
-//   data.overall      → SLO-history-SLI data (sli_value/uptime/precision/...)
-//   data.thresholds   → map keyed by timeframe, values are SLOThreshold
-//                       (timeframe/target/warning) — NOT per-window SLI metrics.
+//
+//	data.overall      → SLO-history-SLI data (sli_value/uptime/precision/...)
+//	data.thresholds   → map keyed by timeframe, values are SLOThreshold
+//	                    (timeframe/target/warning) — NOT per-window SLI metrics.
+//
 // Previously Thresholds was typed as map[string]SLOHistoryMetrics, so the
 // threshold map decoded into structs with all-zero fields. This test pins
 // the real wire shape.

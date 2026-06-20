@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	libcli "github.com/shhac/lib-agent-cli/cli"
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
@@ -23,6 +24,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	registerServices(tr, globals)
 	registerUsage(tr)
 
+	libcli.HandleUnknownCommand(tr, "run 'agent-dd traces usage' to see the available subcommands")
 	root.AddCommand(tr)
 }
 

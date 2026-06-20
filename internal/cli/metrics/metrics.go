@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 
+	libcli "github.com/shhac/lib-agent-cli/cli"
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
@@ -20,6 +21,7 @@ func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	registerMetadata(met, globals)
 	registerUsage(met)
 
+	libcli.HandleUnknownCommand(met, "run 'agent-dd metrics usage' to see the available subcommands")
 	root.AddCommand(met)
 }
 
