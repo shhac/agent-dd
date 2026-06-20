@@ -200,7 +200,7 @@ func resolveFormat(flagFormat string) output.Format {
 func writeRaw(raw json.RawMessage, format output.Format) {
 	var decoded any
 	if err := json.Unmarshal(raw, &decoded); err != nil {
-		fmt.Fprintln(os.Stdout, string(raw))
+		_, _ = fmt.Fprintln(os.Stdout, string(raw))
 		return
 	}
 	output.Print(decoded, format, false)
