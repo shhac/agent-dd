@@ -63,17 +63,15 @@ func PrintJSON(data any, prune bool) {
 }
 
 type NDJSONWriter struct {
-	enc *json.Encoder
+	inner *out.NDJSONWriter
 }
 
 func NewNDJSONWriter(w io.Writer) *NDJSONWriter {
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	return &NDJSONWriter{enc: enc}
+	return &NDJSONWriter{inner: out.NewNDJSONWriter(w)}
 }
 
 func (n *NDJSONWriter) WriteItem(item any) error {
-	return n.enc.Encode(item)
+	return n.inner.WriteItem(item)
 }
 
 // Pagination is Datadog-shaped (a cursor + total count), so it stays local
@@ -96,14 +94,14 @@ const (
 )
 
 func (n *NDJSONWriter) WritePagination(p *Pagination) error {
-	return n.enc.Encode(map[string]any{MetaKeyPagination: p})
+	return n.inner.WriteMetaLine(MetaKeyPagination, p)
 }
 
 // WriteMetaLine emits a single NDJSON line keyed by `key` with the given
 // value. `key` should be one of the MetaKey* constants, or at least follow
 // the `@`-prefix convention so consumers can filter it from the data stream.
 func (n *NDJSONWriter) WriteMetaLine(key string, value any) error {
-	return n.enc.Encode(map[string]any{key: value})
+	return n.inner.WriteMetaLine(key, value)
 }
 
 func toCleanAny(data any, prune bool) (any, bool) {
