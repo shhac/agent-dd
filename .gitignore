@@ -18,5 +18,3 @@ release
 # claude
 .claude/*.local.json
 CLAUDE.local.md
-
-# design docs are tracked (checked in)
