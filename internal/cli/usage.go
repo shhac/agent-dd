@@ -26,7 +26,7 @@ ORGANIZATION SETUP
 
 MONITORS (triage starting point)
   agent-dd monitors list [--status alert|warn|ok|no_data] [--tag <tag>]
-  agent-dd monitors get <id>
+  agent-dd monitors get <id>...
   agent-dd monitors search --query <text> [--status <status>]
   agent-dd monitors mute <id> [--end <time>] [--reason <text>]
   agent-dd monitors unmute <id>
@@ -43,11 +43,11 @@ METRICS
 
 EVENTS
   agent-dd events list [--from <time>] [--to <time>] [--source <src>]
-  agent-dd events get <id>
+  agent-dd events get <id>...
 
 HOSTS
   agent-dd hosts list [--search <text>] [--tag <tag>]
-  agent-dd hosts get <hostname>
+  agent-dd hosts get <hostname>...
   agent-dd hosts mute <hostname> [--end <time>] [--reason <text>]
 
 TRACES (APM)
@@ -56,13 +56,13 @@ TRACES (APM)
 
 INCIDENTS
   agent-dd incidents list [--state <state>]
-  agent-dd incidents get <id>
+  agent-dd incidents get <id>...
   agent-dd incidents create --title <text> --severity <SEV-1..5> [--customer-impacted] [--commander-uuid <uuid>]
   agent-dd incidents update <id> [--state <state>] [--severity <sev>]
 
 SLOs
   agent-dd slo list [--search <text>] [--tag <tag>]
-  agent-dd slo get <id>
+  agent-dd slo get <id>...
   agent-dd slo history <id> --from <time> --to <time>
 
 RAW API (escape hatch for endpoints the typed commands don't wrap)
@@ -75,10 +75,23 @@ TIME FORMATS
   Absolute: 2024-01-15T10:00:00Z (RFC3339)
   Unix epoch seconds
 
+OUTPUT
+  Get (single + multi): get <id>... takes one or more ids and returns one result
+  per id, in input order. Default output is NDJSON: one line per id — the record,
+  or {"@unresolved":{"id","reason","fixable_by","hint"?}} for an id that couldn't
+  be resolved (e.g. not found / bad id). --format json|yaml collapses to one
+  {"data":[...], "@unresolved":[...]} envelope. A single get <id> is just the
+  one-element case (NDJSON one line by default; pass --format json for the object).
+  Item-level misses stay on stdout and exit 0; only a command-level failure (auth,
+  network) goes to stderr with exit 1 and empty stdout.
+
+  List/search commands default to NDJSON (one object per line).
+  --format json|yaml wraps in {"data":[...]} envelope.
+
 GLOBAL FLAGS
   -o, --org <alias>    Organization alias (or DD_ORG env, or DD_API_KEY + DD_APP_KEY)
   -d, --debug          Log HTTP trace ([debug] METHOD URL) to stderr
-  -f, --format json|yaml|jsonl   (default: jsonl for lists, json for single items)
+  -f, --format json|yaml|jsonl   (default: jsonl)
   -t, --timeout <ms>
 
 Per-domain details: agent-dd <domain> usage

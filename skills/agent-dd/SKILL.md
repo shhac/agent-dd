@@ -45,14 +45,18 @@ Errors are JSON to stderr with a classification:
 ```bash
 # Explore (read-only)
 agent-dd monitors list --status alert
-agent-dd monitors get <id>
+agent-dd monitors get <id>...
 agent-dd logs search --query "service:web status:error" --from now-1h
 agent-dd logs facets --query "status:error" --from now-1h
 agent-dd metrics query --query "avg:system.cpu.user{host:web-1}" --from now-1h --to now
 agent-dd traces search --service my-api --from now-30m
 agent-dd incidents list --state active
+agent-dd incidents get <id>...
 agent-dd slo list
+agent-dd slo get <id>...
 agent-dd hosts list --tag "env:production"
+agent-dd hosts get <hostname>...
+agent-dd events get <id>...
 
 # Triage actions
 agent-dd monitors mute <id> --reason "investigating" --end now+1h
@@ -77,10 +81,14 @@ For full operator reference (wildcards, booleans, numeric comparisons, facets): 
 ## Key Concepts
 
 - **Time formats**: relative (`now-15m`, `now-1h`, `now-7d`), RFC3339, or unix epoch. Defaults: `--from now-1h`, `--to now`
-- **Output**: NDJSON for list/search commands, JSON for single items. `--full` for complete API response. `--format json|yaml|jsonl` to override
+- **Output**: NDJSON by default for all commands (list, search, and single-item get). `--full` for complete API response. `--format json|yaml|jsonl` to override. `get <id>...` accepts 1..N ids — see Get contract below.
 - **Monitor statuses**: `ok`, `alert`, `warn`, `no_data`, `unknown`
 - **Incident severities**: `SEV-1` (critical) through `SEV-5` (informational)
 - **Incident statuses**: `active`, `stable`, `resolved`
+
+## Get Contract
+
+`get <id>...` takes one or more ids and returns one result per id, in input order. Default output is NDJSON: one line per id — the record, or `{"@unresolved":{"id","reason","fixable_by","hint"?}}` for an id that couldn't be resolved (e.g. not found / bad id). `--format json|yaml` collapses to one `{"data":[…], "@unresolved":[…]}` envelope. A single `get <id>` is just the one-element case (NDJSON one line by default; pass `--format json` for the object). Item-level misses stay on stdout and exit 0; only a command-level failure (auth, network) goes to stderr with exit 1 and empty stdout.
 
 ## Deeper Reference
 

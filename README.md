@@ -2,7 +2,7 @@
 
 Datadog triage CLI for AI agents. Investigation workflows — monitors, logs, metrics, traces, incidents, SLOs — not full Datadog administration.
 
-- **Token-efficient output** — NDJSON for lists, JSON for single items, YAML available. Compact and null-pruned by default. `--full` for complete API responses
+- **Token-efficient output** — NDJSON by default for all commands (lists and single-item gets). `--format json|yaml|jsonl` to override. Compact and null-pruned by default. `--full` for complete API responses
 - **Structured error classification** — every error includes `fixable_by: agent|human|retry` so AI agents can self-correct without parsing messages
 - **Triage-focused** — only the commands you need during an investigation, not the 200+ Datadog API endpoints
 - **Multi-org support** — switch between Datadog organizations with `--org`, credentials stored in macOS Keychain
@@ -54,8 +54,9 @@ export DD_APP_KEY=<key>
 # All firing monitors
 agent-dd monitors list --status alert
 
-# Full details for a specific monitor
+# Full details for one or more monitors
 agent-dd monitors get 12345
+agent-dd monitors get 12345 67890
 ```
 
 ### 3. Investigate with logs and traces
@@ -90,11 +91,15 @@ agent-dd
 
 ## Output
 
-- **stdout** — NDJSON for list/search commands (one object per line), JSON for single-item commands
+- **stdout** — NDJSON by default for all commands: one object per line for lists, one line per id for gets
 - **stderr** — errors as JSON with `fixable_by` classification
 - **`--format json|yaml|jsonl`** — override the default for any command
 - **Compact by default** — e.g. monitors show `id, name, status, type`. Use `--full` for everything
 - **Null-pruned** — empty/null fields stripped from output to save tokens
+
+### Get contract
+
+`get <id>...` takes one or more ids and returns one result per id, in input order. Default output is NDJSON: one line per id — the record, or `{"@unresolved":{"id","reason","fixable_by","hint"?}}` for an id that couldn't be resolved (e.g. not found / bad id). `--format json|yaml` collapses to one `{"data":[…], "@unresolved":[…]}` envelope. A single `get <id>` is just the one-element case (NDJSON one line by default; pass `--format json` for the object). Item-level misses stay on stdout and exit 0; only a command-level failure (auth, network) goes to stderr with exit 1 and empty stdout.
 
 ## Error output
 
