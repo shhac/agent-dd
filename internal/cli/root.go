@@ -16,6 +16,7 @@ import (
 	"github.com/shhac/agent-dd/internal/cli/shared"
 	"github.com/shhac/agent-dd/internal/cli/slo"
 	"github.com/shhac/agent-dd/internal/cli/traces"
+	"github.com/shhac/agent-dd/internal/credential"
 	"github.com/shhac/agent-dd/internal/output"
 )
 
@@ -59,7 +60,9 @@ func newRootCmd(version string) *cobra.Command {
 	exposeGroups(root,
 		"api", "events", "hosts", "incidents", "logs", "metrics", "monitors", "slo", "traces")
 
-	root.AddCommand(agentmcp.Command(root, agentmcp.WithHiddenFlags("color", "expose")))
+	root.AddCommand(agentmcp.Command(root,
+		agentmcp.WithHiddenFlags("color", "expose"),
+		agentmcp.WithOAuthKeyringService(credential.MCPKeychainService())))
 
 	return root
 }

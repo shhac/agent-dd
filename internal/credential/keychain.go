@@ -8,6 +8,10 @@ import (
 
 const keychainService = "app.paulie.agent-dd"
 
+// MCPKeychainService is the Keychain service for the MCP server's local-OAuth
+// secrets — the CLI's service plus a ".mcp" namespace, separate from the API creds.
+func MCPKeychainService() string { return keychainService + ".mcp" }
+
 func keychain() *creds.Keychain {
 	return creds.NewKeychain(keychainService)
 }
