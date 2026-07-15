@@ -21,8 +21,10 @@ brew install shhac/tap/agent-dd
 ### Claude Code / AI agent skill
 
 ```bash
-npx skills add shhac/agent-dd
+npx skills add shhac/agent-skills --skill agent-dd --global
 ```
+
+Installs the `agent-dd` skill globally so Claude Code (and other AI agents) can discover and use it automatically. It ships from [`shhac/agent-skills`](https://github.com/shhac/agent-skills) — the whole family's skills in one repo, so `npx skills update` checks a single source no matter how many you use. Want several at once? Run `npx skills add shhac/agent-skills --global` and pick from the list.
 
 ### Other options
 
