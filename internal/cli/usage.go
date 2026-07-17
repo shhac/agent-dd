@@ -19,6 +19,7 @@ func registerUsageCommand(root *cobra.Command) {
 const usageText = `agent-dd — Datadog triage CLI for AI agents
 
 ORGANIZATION SETUP
+  agent-dd org add <alias> --form [--site <site>]          # LLM-safe: type keys into a native OS dialog
   agent-dd org add <alias> --api-key <key> --app-key <key> [--site <site>]
   agent-dd org test
   agent-dd org list

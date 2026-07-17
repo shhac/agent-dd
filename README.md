@@ -39,9 +39,16 @@ go install github.com/shhac/agent-dd/cmd/agent-dd@latest
 ### 1. Add a Datadog organization
 
 ```bash
+# Preferred: type the keys into a native OS dialog. The secret is entered
+# directly into the OS and is never seen by the agent driving the CLI.
+agent-dd org add prod --form --site datadoghq.com
+
+# Or pass the keys as flags:
 agent-dd org add prod --api-key <DD_API_KEY> --app-key <DD_APP_KEY> --site datadoghq.com
 agent-dd org test
 ```
+
+`--form` prompts for whichever of `--api-key` / `--app-key` you did not pass on the command line, and requires a graphical desktop session (fails cleanly with `fixable_by=human` on headless/SSH hosts).
 
 Or use environment variables directly (no setup needed):
 

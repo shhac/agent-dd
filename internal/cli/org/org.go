@@ -34,6 +34,7 @@ func Register(root *cobra.Command) {
 
 func registerAdd(parent *cobra.Command) {
 	var apiKey, appKey, site string
+	var form bool
 
 	cmd := &cobra.Command{
 		Use:   "add <alias>",
@@ -41,6 +42,15 @@ func registerAdd(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			alias := args[0]
+
+			if form {
+				filledAPI, filledApp, err := promptMissingViaDialog(cmd.Context(), alias, apiKey, appKey)
+				if err != nil {
+					output.WriteError(os.Stderr, err)
+					return nil
+				}
+				apiKey, appKey = filledAPI, filledApp
+			}
 
 			if apiKey == "" || appKey == "" {
 				err := agenterrors.New("both --api-key and --app-key are required", agenterrors.FixableByAgent)
@@ -78,11 +88,13 @@ func registerAdd(parent *cobra.Command) {
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "Datadog API key (required)")
 	cmd.Flags().StringVar(&appKey, "app-key", "", "Datadog application key (required)")
 	cmd.Flags().StringVar(&site, "site", "", "Datadog site (default: datadoghq.com)")
+	cmd.Flags().BoolVar(&form, "form", false, "LLM-safe secret entry via a native OS dialog; the secret is typed directly into the OS, never seen by the agent (prompts for any api-key/app-key not passed as a flag)")
 	parent.AddCommand(cmd)
 }
 
 func registerUpdate(parent *cobra.Command) {
 	var apiKey, appKey, site string
+	var form bool
 
 	cmd := &cobra.Command{
 		Use:   "update <alias>",
@@ -90,6 +102,15 @@ func registerUpdate(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			alias := args[0]
+
+			if form {
+				filledAPI, filledApp, err := promptMissingViaDialog(cmd.Context(), alias, apiKey, appKey)
+				if err != nil {
+					output.WriteError(os.Stderr, err)
+					return nil
+				}
+				apiKey, appKey = filledAPI, filledApp
+			}
 
 			if err := updateCredentials(alias, apiKey, appKey); err != nil {
 				output.WriteError(os.Stderr, err)
@@ -111,6 +132,7 @@ func registerUpdate(parent *cobra.Command) {
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "Datadog API key")
 	cmd.Flags().StringVar(&appKey, "app-key", "", "Datadog application key")
 	cmd.Flags().StringVar(&site, "site", "", "Datadog site")
+	cmd.Flags().BoolVar(&form, "form", false, "LLM-safe secret entry via a native OS dialog; the secret is typed directly into the OS, never seen by the agent (prompts for any api-key/app-key not passed as a flag)")
 	parent.AddCommand(cmd)
 }
 

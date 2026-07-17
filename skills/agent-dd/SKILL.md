@@ -108,9 +108,15 @@ agent-dd slo usage                # error budgets, history interpretation
 
 If credentials aren't configured yet:
 ```bash
+# Preferred: type keys into a native OS dialog (the secret goes straight into
+# the OS and is never seen by the agent). Prompts for whichever key is missing.
+agent-dd org add <alias> --form [--site datadoghq.com]
+
+# Or pass keys directly as flags:
 agent-dd org add <alias> --api-key <key> --app-key <key> [--site datadoghq.com]
 agent-dd org test
 ```
 Keys are in Datadog → Organization Settings → API Keys / Application Keys.
+`--form` requires a graphical desktop session; it fails cleanly (fixable_by=human) on headless/SSH hosts.
 
 Environment variables also work: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE`.
