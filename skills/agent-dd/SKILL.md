@@ -104,19 +104,35 @@ agent-dd incidents usage          # severity guide, lifecycle
 agent-dd slo usage                # error budgets, history interpretation
 ```
 
-## Organization Setup
+## Organization Setup — never paste secrets
 
-If credentials aren't configured yet:
+The api-key and app-key are secrets. If a user pastes either into chat, **do not**
+put it into `--api-key` / `--app-key`: the value would land in your context window,
+shell history, `ps`/`/proc`, and any downstream transcript. Keep the secret off argv.
+
 ```bash
-# Preferred: type keys into a native OS dialog (the secret goes straight into
-# the OS and is never seen by the agent). Prompts for whichever key is missing.
+# Preferred (interactive): the user types both keys into a native OS dialog. The
+# secret goes straight into the OS and is never seen by the agent driving the CLI.
 agent-dd org add <alias> --form [--site datadoghq.com]
 
-# Or pass keys directly as flags:
-agent-dd org add <alias> --api-key <key> --app-key <key> [--site datadoghq.com]
+# Non-interactive: pipe the two keys on stdin, one per line — api-key first,
+# app-key second. Nothing sensitive touches the command line.
+printf '%s\n%s' "$API_KEY" "$APP_KEY" | agent-dd org add <alias> [--site datadoghq.com]
+
 agent-dd org test
 ```
-Keys are in Datadog → Organization Settings → API Keys / Application Keys.
-`--form` requires a graphical desktop session; it fails cleanly (fixable_by=human) on headless/SSH hosts.
 
-Environment variables also work: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE`.
+Keys are in Datadog → Organization Settings → API Keys / Application Keys.
+
+`--form` opens a native dialog (macOS osascript, Linux zenity/kdialog, Windows Win32);
+it requires a graphical desktop session and fails cleanly (`fixable_by=human`) on
+headless/SSH hosts — surface the hint, do not retry. The piped-stdin form is the
+non-interactive fallback: the two-line contract is all-or-nothing (stdin is read only
+when **neither** key is passed as a flag), line 1 → api-key, line 2 → app-key. The agent
+may set `--site` on the user's behalf, but secret values must always come through
+`--form` or piped stdin, never as flag arguments.
+
+`org update <alias>` accepts the same `--form` and piped-stdin entry, and merges
+partially: an omitted key preserves the stored value.
+
+Environment variables also work for direct auth: `DD_API_KEY`, `DD_APP_KEY`, `DD_SITE`.

@@ -38,17 +38,22 @@ go install github.com/shhac/agent-dd/cmd/agent-dd@latest
 
 ### 1. Add a Datadog organization
 
+The api-key and app-key are secrets — keep them off the command line so they never
+land in shell history, `ps`/`/proc`, or an agent transcript:
+
 ```bash
-# Preferred: type the keys into a native OS dialog. The secret is entered
-# directly into the OS and is never seen by the agent driving the CLI.
+# Preferred (interactive): type the keys into a native OS dialog. The secret is
+# entered directly into the OS and is never seen by the agent driving the CLI.
 agent-dd org add prod --form --site datadoghq.com
 
-# Or pass the keys as flags:
-agent-dd org add prod --api-key <DD_API_KEY> --app-key <DD_APP_KEY> --site datadoghq.com
+# Non-interactive: pipe both keys on stdin, one per line — api-key first, app-key
+# second. Nothing sensitive touches argv.
+printf '%s\n%s' "$DD_API_KEY" "$DD_APP_KEY" | agent-dd org add prod --site datadoghq.com
+
 agent-dd org test
 ```
 
-`--form` prompts for whichever of `--api-key` / `--app-key` you did not pass on the command line, and requires a graphical desktop session (fails cleanly with `fixable_by=human` on headless/SSH hosts).
+`--form` prompts for whichever of `--api-key` / `--app-key` you did not pass on the command line, and requires a graphical desktop session (fails cleanly with `fixable_by=human` on headless/SSH hosts). The piped-stdin fallback is all-or-nothing: stdin is read only when neither key is passed as a flag, and maps line 1 → api-key, line 2 → app-key.
 
 Or use environment variables directly (no setup needed):
 
@@ -127,9 +132,10 @@ All errors are written to stderr as structured JSON:
 ## Multi-org support
 
 ```bash
-# Add multiple organizations
-agent-dd org add prod --api-key <key> --app-key <key> --site datadoghq.com
-agent-dd org add eu --api-key <key> --app-key <key> --site datadoghq.eu
+# Add multiple organizations — pipe the two keys (api-key first, app-key second)
+# so secrets stay off argv; or use --form for a native OS dialog.
+printf '%s\n%s' "$API" "$APP" | agent-dd org add prod --site datadoghq.com
+printf '%s\n%s' "$API" "$APP" | agent-dd org add eu --site datadoghq.eu
 
 # Query a specific org
 agent-dd monitors list --status alert --org eu
