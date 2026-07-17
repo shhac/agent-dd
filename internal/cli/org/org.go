@@ -5,6 +5,7 @@ import (
 	"os"
 
 	libcli "github.com/shhac/lib-agent-cli/cli"
+	"github.com/shhac/lib-agent-cli/creds"
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
@@ -42,6 +43,11 @@ func registerAdd(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			alias := args[0]
+
+			if err := fillKeysFromStdin(cmd, &apiKey, &appKey); err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
+			}
 
 			if form {
 				filledAPI, filledApp, err := promptMissingViaDialog(cmd.Context(), alias, apiKey, appKey)
@@ -102,6 +108,11 @@ func registerUpdate(parent *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			alias := args[0]
+
+			if err := fillKeysFromStdin(cmd, &apiKey, &appKey); err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
+			}
 
 			if form {
 				filledAPI, filledApp, err := promptMissingViaDialog(cmd.Context(), alias, apiKey, appKey)
@@ -237,6 +248,30 @@ func registerTest(parent *cobra.Command) {
 	}
 	cmd.Flags().StringP("org", "o", "", "Organization alias to test")
 	parent.AddCommand(cmd)
+}
+
+// fillKeysFromStdin resolves api-key/app-key from a piped stdin stream, keeping
+// both secrets off argv. It honours the multi-secret all-or-nothing contract
+// (see creds.ReadSecretLines): stdin is consulted only when NEITHER key was
+// supplied as a flag, avoiding ambiguity about which line maps to which field.
+// Line 1 → api-key, line 2 → app-key; a missing line leaves its field empty for
+// the caller's downstream handling (--form prompt, partial merge, or the
+// required-key error). Flags always win, so a flag-supplied key is untouched.
+func fillKeysFromStdin(cmd *cobra.Command, apiKey, appKey *string) error {
+	if *apiKey != "" || *appKey != "" {
+		return nil
+	}
+	lines, err := creds.ReadSecretLines(cmd.InOrStdin())
+	if err != nil {
+		return agenterrors.Wrap(err, agenterrors.FixableByHuman)
+	}
+	if len(lines) > 0 {
+		*apiKey = lines[0]
+	}
+	if len(lines) > 1 {
+		*appKey = lines[1]
+	}
+	return nil
 }
 
 func siteOrDefault(site string) string {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -28,13 +29,24 @@ func setupHeadless(t *testing.T) string {
 }
 
 // runOrg builds a fresh root, registers the org command tree, and runs it with
-// the given args while capturing stdout and stderr.
+// the given args while capturing stdout and stderr. Stdin is an empty,
+// non-terminal stream so credential commands never block on the real os.Stdin.
 func runOrg(t *testing.T, args ...string) (stdout, stderr string) {
+	t.Helper()
+	return runOrgStdin(t, "", args...)
+}
+
+// runOrgStdin is runOrg with a caller-supplied stdin payload, exercising the
+// piped-secret path (creds.ReadSecretLines). A strings.Reader is not an
+// *os.File, so the helper's isInteractive check treats it as a non-terminal
+// pipe and reads its lines.
+func runOrgStdin(t *testing.T, stdin string, args ...string) (stdout, stderr string) {
 	t.Helper()
 
 	root := &cobra.Command{Use: "agent-dd"}
 	org.Register(root)
 	root.SetArgs(args)
+	root.SetIn(strings.NewReader(stdin))
 
 	outR, outW, err := os.Pipe()
 	if err != nil {
@@ -143,6 +155,107 @@ func TestOrgAdd_RequiredFlagGuard(t *testing.T) {
 				t.Errorf("guard should not have written credentials.json (stat err = %v)", err)
 			}
 		})
+	}
+}
+
+func TestOrgAdd_StdinBothLines(t *testing.T) {
+	dir := setupHeadless(t)
+
+	// No flags: both keys arrive on stdin, line 1 → api-key, line 2 → app-key.
+	stdout, _ := runOrgStdin(t, "api-piped\napp-piped\n", "org", "add", "prod")
+
+	status := decodeStatus(t, stdout)
+	if status["status"] != "added" {
+		t.Fatalf("status = %v, want \"added\"", status["status"])
+	}
+
+	entry := readCredsIndex(t, dir)["prod"]
+	if entry["api_key"] != "api-piped" {
+		t.Errorf("api_key = %v, want \"api-piped\" (stdin line 1)", entry["api_key"])
+	}
+	if entry["app_key"] != "app-piped" {
+		t.Errorf("app_key = %v, want \"app-piped\" (stdin line 2)", entry["app_key"])
+	}
+}
+
+func TestOrgAdd_FlagsWinOverStdin(t *testing.T) {
+	dir := setupHeadless(t)
+
+	// Both flags provided: stdin must be ignored entirely (all-or-nothing
+	// contract — any flag present means stdin is never consulted).
+	stdout, _ := runOrgStdin(t, "stdin-api\nstdin-app\n",
+		"org", "add", "prod", "--api-key", "flag-api", "--app-key", "flag-app")
+
+	status := decodeStatus(t, stdout)
+	if status["status"] != "added" {
+		t.Fatalf("status = %v, want \"added\"", status["status"])
+	}
+
+	entry := readCredsIndex(t, dir)["prod"]
+	if entry["api_key"] != "flag-api" {
+		t.Errorf("api_key = %v, want \"flag-api\" (flag wins, stdin ignored)", entry["api_key"])
+	}
+	if entry["app_key"] != "flag-app" {
+		t.Errorf("app_key = %v, want \"flag-app\" (flag wins, stdin ignored)", entry["app_key"])
+	}
+}
+
+func TestOrgAdd_StdinSingleLineHitsRequiredGuard(t *testing.T) {
+	dir := setupHeadless(t)
+
+	// One line only: api-key fills, app-key stays empty, so the required-key
+	// guard fires and nothing is stored.
+	_, stderr := runOrgStdin(t, "only-api\n", "org", "add", "prod")
+
+	var errObj map[string]any
+	if err := json.Unmarshal([]byte(stderr), &errObj); err != nil {
+		t.Fatalf("stderr not JSON error (%q): %v", stderr, err)
+	}
+	if errObj["error"] == nil || errObj["error"] == "" {
+		t.Errorf("expected non-empty error, got %v", errObj["error"])
+	}
+	if _, err := os.Stat(filepath.Join(dir, "credentials.json")); !os.IsNotExist(err) {
+		t.Errorf("guard should not have written credentials.json (stat err = %v)", err)
+	}
+}
+
+func TestOrgUpdate_StdinBothLines(t *testing.T) {
+	dir := setupHeadless(t)
+
+	runOrg(t, "org", "add", "stage", "--api-key", "api-orig", "--app-key", "app-orig")
+
+	// Both keys rotated via stdin (no flags): partial merge overlays both.
+	stdout, _ := runOrgStdin(t, "api-rot\napp-rot\n", "org", "update", "stage")
+
+	status := decodeStatus(t, stdout)
+	if status["status"] != "updated" {
+		t.Fatalf("status = %v, want \"updated\"", status["status"])
+	}
+
+	entry := readCredsIndex(t, dir)["stage"]
+	if entry["api_key"] != "api-rot" {
+		t.Errorf("api_key = %v, want \"api-rot\" (stdin line 1)", entry["api_key"])
+	}
+	if entry["app_key"] != "app-rot" {
+		t.Errorf("app_key = %v, want \"app-rot\" (stdin line 2)", entry["app_key"])
+	}
+}
+
+func TestOrgUpdate_StdinSingleLinePreservesAppKey(t *testing.T) {
+	dir := setupHeadless(t)
+
+	runOrg(t, "org", "add", "stage", "--api-key", "api-orig", "--app-key", "app-orig")
+
+	// One line: only api-key updates; the empty app-key preserves the stored
+	// value via updateCredentials' partial merge.
+	runOrgStdin(t, "api-rot\n", "org", "update", "stage")
+
+	entry := readCredsIndex(t, dir)["stage"]
+	if entry["api_key"] != "api-rot" {
+		t.Errorf("api_key = %v, want \"api-rot\" (stdin line 1)", entry["api_key"])
+	}
+	if entry["app_key"] != "app-orig" {
+		t.Errorf("app_key = %v, want \"app-orig\" (partial merge preserves unprovided key)", entry["app_key"])
 	}
 }
 
