@@ -251,25 +251,14 @@ func registerTest(parent *cobra.Command) {
 }
 
 // fillKeysFromStdin resolves api-key/app-key from a piped stdin stream, keeping
-// both secrets off argv. It honours the multi-secret all-or-nothing contract
-// (see creds.ReadSecretLines): stdin is consulted only when NEITHER key was
-// supplied as a flag, avoiding ambiguity about which line maps to which field.
-// Line 1 → api-key, line 2 → app-key; a missing line leaves its field empty for
-// the caller's downstream handling (--form prompt, partial merge, or the
-// required-key error). Flags always win, so a flag-supplied key is untouched.
+// both secrets off argv. creds.ReadSecrets owns the multi-secret contract
+// (all-or-nothing: stdin is consulted only when NEITHER key was supplied as a
+// flag; line 1 → api-key, line 2 → app-key; a missing line leaves its field
+// empty for the caller's --form/partial-merge/required-key handling). This
+// wrapper only adapts a read failure to the repo's error contract.
 func fillKeysFromStdin(cmd *cobra.Command, apiKey, appKey *string) error {
-	if *apiKey != "" || *appKey != "" {
-		return nil
-	}
-	lines, err := creds.ReadSecretLines(cmd.InOrStdin())
-	if err != nil {
+	if err := creds.ReadSecrets(cmd.InOrStdin(), apiKey, appKey); err != nil {
 		return agenterrors.Wrap(err, agenterrors.FixableByHuman)
-	}
-	if len(lines) > 0 {
-		*apiKey = lines[0]
-	}
-	if len(lines) > 1 {
-		*appKey = lines[1]
 	}
 	return nil
 }

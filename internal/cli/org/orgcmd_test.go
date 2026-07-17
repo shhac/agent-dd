@@ -37,9 +37,9 @@ func runOrg(t *testing.T, args ...string) (stdout, stderr string) {
 }
 
 // runOrgStdin is runOrg with a caller-supplied stdin payload, exercising the
-// piped-secret path (creds.ReadSecretLines). A strings.Reader is not an
-// *os.File, so the helper's isInteractive check treats it as a non-terminal
-// pipe and reads its lines.
+// piped-secret path (creds.ReadSecrets). A strings.Reader is not an *os.File,
+// so the helper's terminal check treats it as a non-terminal pipe and reads
+// its lines.
 func runOrgStdin(t *testing.T, stdin string, args ...string) (stdout, stderr string) {
 	t.Helper()
 
