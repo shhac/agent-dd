@@ -23,11 +23,8 @@ func (s *server) handleMonitors(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) createMonitor(w http.ResponseWriter, r *http.Request) {
-	definition, ok := decodeMonitorDefinition(w, r)
+	definition, ok := decodeValidMonitor(w, r)
 	if !ok {
-		return
-	}
-	if !validMonitorDefinition(w, definition) {
 		return
 	}
 
@@ -136,11 +133,8 @@ func (s *server) getMonitor(w http.ResponseWriter, id int) {
 }
 
 func (s *server) updateMonitor(w http.ResponseWriter, r *http.Request, id int) {
-	definition, ok := decodeMonitorDefinition(w, r)
+	definition, ok := decodeValidMonitor(w, r)
 	if !ok {
-		return
-	}
-	if !validMonitorDefinition(w, definition) {
 		return
 	}
 
@@ -173,11 +167,7 @@ func (s *server) validateNewMonitor(w http.ResponseWriter, r *http.Request) {
 	if !requireMethod(w, r, http.MethodPost) {
 		return
 	}
-	definition, ok := decodeMonitorDefinition(w, r)
-	if !ok {
-		return
-	}
-	if !validMonitorDefinition(w, definition) {
+	if _, ok := decodeValidMonitor(w, r); !ok {
 		return
 	}
 	writeJSON(w, 200, map[string]any{})
@@ -196,20 +186,22 @@ func (s *server) validateExistingMonitor(w http.ResponseWriter, r *http.Request,
 		writeError(w, 404, "Monitor not found")
 		return
 	}
-	definition, ok := decodeMonitorDefinition(w, r)
-	if !ok {
-		return
-	}
-	if !validMonitorDefinition(w, definition) {
+	if _, ok := decodeValidMonitor(w, r); !ok {
 		return
 	}
 	writeJSON(w, 200, map[string]any{})
 }
 
-func decodeMonitorDefinition(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
+// decodeValidMonitor is the single entry point every monitor write and validate
+// handler goes through: decode the body, apply Datadog's required-field checks,
+// and report false with the error already written when either fails.
+func decodeValidMonitor(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
 	var definition map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&definition); err != nil || definition == nil {
 		writeError(w, 400, "request body is not a JSON object")
+		return nil, false
+	}
+	if !validMonitorDefinition(w, definition) {
 		return nil, false
 	}
 	return definition, true

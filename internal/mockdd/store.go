@@ -77,13 +77,17 @@ func (s *store) findMonitor(id int) (map[string]any, bool) {
 	return maps.Clone(s.monitors[i]), true
 }
 
+// Writes clone on the way in for the same reason reads clone on the way out:
+// the store owns its state, and a caller that keeps hold of the map it passed
+// must not be able to reach in and change it afterwards.
 func (s *store) addMonitor(m map[string]any) map[string]any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	stored := maps.Clone(m)
 	s.monitorCounter++
-	m["id"] = s.monitorCounter
-	s.monitors = append(s.monitors, m)
-	return maps.Clone(m)
+	stored["id"] = s.monitorCounter
+	s.monitors = append(s.monitors, stored)
+	return maps.Clone(stored)
 }
 
 // replaceMonitor swaps the stored monitor for `m`, preserving its position and
@@ -95,8 +99,9 @@ func (s *store) replaceMonitor(id int, m map[string]any) bool {
 	if i < 0 {
 		return false
 	}
-	m["id"] = id
-	s.monitors[i] = m
+	stored := maps.Clone(m)
+	stored["id"] = id
+	s.monitors[i] = stored
 	return true
 }
 
