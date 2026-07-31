@@ -1,6 +1,6 @@
 # agent-dd
 
-Datadog triage CLI for AI agents. Focused on investigation workflows — logs, metrics, monitors, traces, incidents, SLOs — not full Datadog administration.
+Datadog triage CLI for AI agents. Focused on investigation workflows — logs, metrics, monitors, traces, incidents, SLOs — plus the write operations that follow directly from an investigation (creating and adjusting monitors). Not full Datadog administration.
 
 ## Design Docs
 

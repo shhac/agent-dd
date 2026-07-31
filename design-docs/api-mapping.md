@@ -9,10 +9,19 @@ How CLI commands map to Datadog API endpoints.
 | `monitors list` | GET | `/v1/monitor` |
 | `monitors get <id>` | GET | `/v1/monitor/{id}` |
 | `monitors search --query <q>` | GET | `/v1/monitor/search` |
+| `monitors create` | POST | `/v1/monitor` |
+| `monitors create --dry-run` | POST | `/v1/monitor/validate` |
+| `monitors update <id>` | GET + PUT | `/v1/monitor/{id}` then PUT `/v1/monitor/{id}` |
+| `monitors update <id> --dry-run` | GET + POST | `/v1/monitor/{id}` then POST `/v1/monitor/{id}/validate` |
+| `monitors delete <id> --yes` | DELETE | `/v1/monitor/{id}` (`?force=true` with `--force`) |
 | `monitors mute <id>` | POST | `/v2/downtime` |
 | `monitors unmute <id>` | GET + DELETE | `/v2/downtime?filter[monitor_id]=...&filter[status]=active` then DELETE `/v2/downtime/{id}` |
 
 Notes: Status filtering in `list` and `search` is done client-side. Muting creates a v2 downtime scoped to the monitor. Unmuting finds and cancels only **active** downtimes for that monitor — scheduled future downtimes are left intact.
+
+`update` is always a read-modify-write: it GETs the monitor, strips server-owned fields, layers the caller's changes on, and PUTs the whole object. It never sends a partial body. See [decisions.md](decisions.md#monitor-updates-are-read-modify-write-over-an-untyped-map).
+
+Write endpoints need the `monitors_write` permission; the `validate` endpoints need only `monitors_read`, which is why `--dry-run` works for callers who cannot actually write.
 
 ## Logs (v2)
 

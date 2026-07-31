@@ -6,11 +6,12 @@ allowed-tools: Bash(agent-dd *) Read Grep Glob
 
 # agent-dd — Datadog Triage CLI
 
-Investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs. Triage and debugging workflows only — not full Datadog administration.
+Investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs, and act on what you find by creating or adjusting monitors. Triage, debugging and the hardening that follows — not full Datadog administration (no dashboards, users, roles, pipelines, or synthetics).
 
 ## When to Use
 
 - Checking monitor/alert status, muting/unmuting monitors
+- Creating a monitor to catch a problem you just diagnosed, or adjusting one that misfired
 - Searching logs for errors, spikes, or anomalies
 - Querying metrics or investigating metric spikes
 - Searching traces for latency or errors
@@ -26,6 +27,24 @@ Investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs. Triage
 3. **Find the hotspot**: `logs facets` to see which services/hosts/statuses dominate
 4. **Gather context**: Pull logs, metrics, and traces for the affected service
 5. **Correlate**: Do log errors align with metric spikes? Do traces show latency?
+
+### Harden after diagnosis
+
+Once you know what broke, the next questions are "how do we stop it happening
+again" and "how do we get visibility on it". Both mean writing a monitor.
+
+1. **Check what already exists** — `monitors search --query "<service>"`. Often
+   the right answer is fixing a monitor that misfired, not adding a new one.
+2. **Dry-run first** — `--dry-run` sends the definition to Datadog's validate
+   endpoint. The query is parsed by the same engine that would run it, so a
+   malformed one fails here rather than being created broken.
+3. **Then write it** — `monitors create`, or `monitors update <id>` to adjust an
+   existing monitor's thresholds.
+4. **Report the diff** — `update` returns a before/after of exactly what moved.
+   Hand that to the human: it is the evidence that nothing else changed.
+
+Prefer `update` on an existing monitor over creating a near-duplicate. Two
+monitors covering the same signal is how alert fatigue starts.
 
 ### Always read before acting
 
@@ -63,6 +82,20 @@ agent-dd monitors mute <id> --reason "investigating" --end now+1h
 agent-dd monitors unmute <id>
 agent-dd incidents create --title "Elevated error rate" --severity SEV-3
 agent-dd incidents update <id> --state stable
+
+# Harden (write) — always --dry-run first
+agent-dd monitors create --type "metric alert" \
+  --query 'avg(last_5m):avg:system.cpu.user{service:web} > 90' \
+  --name "CPU high on web" --message "@slack-oncall" \
+  --tag "service:web" --priority 2 \
+  --threshold-critical 90 --threshold-warning 80 --dry-run
+agent-dd monitors update <id> --threshold-critical 95   # merges; siblings survive
+agent-dd monitors update <id> --renotify-interval 30 --dry-run
+agent-dd monitors delete <id> --yes [--force]
+
+# Options this CLI has no flag for: pass the whole definition
+agent-dd monitors create --body @monitor.json
+echo '{"type":"log alert","query":"...","name":"..."}' | agent-dd monitors create --body @-
 
 # Discovery
 agent-dd metrics list --search "system.cpu"

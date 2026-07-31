@@ -31,6 +31,9 @@ MONITORS (triage starting point)
   agent-dd monitors search --query <text> [--status <status>]
   agent-dd monitors mute <id> [--end <time>] [--reason <text>]
   agent-dd monitors unmute <id>
+  agent-dd monitors create --type <type> --query <q> --name <n> [--dry-run]
+  agent-dd monitors update <id> [field flags] [--dry-run]
+  agent-dd monitors delete <id> --yes [--force]
 
 LOGS (investigation)
   agent-dd logs search --query <query> [--from <time>] [--to <time>] [--limit N]

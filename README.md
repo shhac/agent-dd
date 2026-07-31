@@ -1,6 +1,6 @@
 # agent-dd
 
-Datadog triage CLI for AI agents. Investigation workflows — monitors, logs, metrics, traces, incidents, SLOs — not full Datadog administration.
+Datadog triage CLI for AI agents. Investigation workflows — monitors, logs, metrics, traces, incidents, SLOs — plus the hardening that follows: creating and adjusting monitors once you know what broke. Not full Datadog administration.
 
 - **Token-efficient output** — NDJSON by default for all commands (lists and single-item gets). `--format json|yaml|jsonl` to override. Compact and null-pruned by default. `--full` for complete API responses
 - **Structured error classification** — every error includes `fixable_by: agent|human|retry` so AI agents can self-correct without parsing messages
@@ -86,12 +86,39 @@ agent-dd logs facets --query "status:error" --from now-1h
 agent-dd traces search --service web-api --query "@duration:>1000000000" --from now-30m
 ```
 
+### 4. Harden what you found
+
+```bash
+# Validate against Datadog without creating anything
+agent-dd monitors create --type "metric alert" \
+  --query 'avg(last_5m):avg:system.cpu.user{service:web-api} > 90' \
+  --name "CPU high on web-api" --message "@slack-oncall" \
+  --threshold-critical 90 --threshold-warning 80 --dry-run
+
+# Adjust an existing monitor that misfired
+agent-dd monitors update 12345 --threshold-critical 95
+```
+
+`update` changes only the fields you pass. It reads the monitor, layers your
+changes on, and writes the whole definition back — so fields this CLI doesn't
+model (`restricted_roles`, composite sub-monitors, the long tail of `options`)
+survive untouched, and options merge key-by-key rather than replacing wholesale.
+The response reports a before/after diff of exactly what moved:
+
+```json
+{"status":"updated","monitor_id":12345,
+ "changes":{"options.thresholds.critical":{"from":90,"to":95}}}
+```
+
+For options with no dedicated flag, pass the whole definition with
+`--body` (inline JSON, `@file`, or `@-` for stdin).
+
 ## Command map
 
 ```text
 agent-dd
 ├── org           add, update, remove, list, set-default, test
-├── monitors      list, get, search, mute, unmute, usage
+├── monitors      list, get, search, create, update, delete, mute, unmute, usage
 ├── logs          search, tail, facets, usage
 ├── metrics       query, list, metadata, usage
 ├── events        list, get

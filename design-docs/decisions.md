@@ -67,3 +67,72 @@ Failure split: item-level misses go to stdout as `@unresolved` lines, exit 0. Co
 ## DI via package-level `ClientFactory`
 
 Tests need to intercept client creation to inject `httptest.Server` URLs. A package-level `func() (*api.Client, error)` variable is the simplest DI mechanism that doesn't require interfaces or dependency injection frameworks. It's nil in production, set only during tests, and cleaned up via `t.Cleanup`.
+
+## Monitor writes are in scope; Datadog administration is not
+
+The tool originally read monitors and muted them, and stopped there. But triage
+doesn't end at diagnosis — once you know what broke, the next two questions are
+"how do we stop this happening again" and "how do we get visibility on it", and
+both are answered by creating or adjusting a monitor. Answering them used to
+mean dropping out of the tool into `api POST /v1/monitor --allow-write` with a
+hand-written JSON body.
+
+The line now sits here: **write operations that follow directly from an
+investigation are in scope. Datadog administration that doesn't is not** —
+dashboards, users, roles, log pipelines, synthetics, notebooks.
+
+## Monitor updates are read-modify-write over an untyped map
+
+`api.Monitor` models perhaps 15% of a real Datadog monitor. Marshalling that
+struct and PUTting it would silently drop `restricted_roles`, most of `options`,
+composite sub-monitors — everything the CLI has no field for. Nested `options`
+is the sharpest edge: supplying a partial options object on PUT replaces it
+wholesale, so `--renotify-interval 30` alone could erase a tuned threshold.
+
+So `update` GETs the monitor into a `map[string]any`, strips the server-owned
+fields (`overall_state`, `created`, `modified`, `last_triggered_ts`, `creator`,
+`org_id`, `matching_downtimes`, `deleted`, `state`), layers on only the flags
+the caller actually passed, and PUTs the whole object. Nested maps merge
+key-by-key; lists replace wholesale, because merging tags would make removal
+impossible.
+
+The payoff: **the CLI never has to model Datadog's full monitor schema in order
+to avoid clobbering fields it doesn't know about**, and the behaviour is correct
+regardless of Datadog's actual partial-update semantics. The merge logic is pure
+functions over maps in `monitor_merge.go`, tested with no HTTP — wire
+correctness is mockdd's job, and the two are different classes of bug.
+
+`update` emits a before/after diff of only what changed, keyed by dotted path
+(`options.thresholds.critical`). That diff is part of the command's contract,
+not debug output: it's what an agent hands back to a human as evidence that
+nothing else moved.
+
+## `--dry-run` uses Datadog's validate endpoints
+
+`POST /v1/monitor/validate` and `POST /v1/monitor/{id}/validate` check a
+definition without writing. The query is parsed by the same engine that would
+run it, so a malformed one fails before anything is created — strictly better
+than a client-side approximation of Datadog's query grammar. They need only
+`monitors_read`, so `--dry-run` works for callers who cannot write.
+
+## `create` and `update` are ungated; `delete` requires `--yes`
+
+No `--allow-write`-style gate on create or update. `incidents create` set that
+precedent, and a gate an agent satisfies by appending a flag buys nothing
+against an agent while costing ergonomics for the caller doing the right thing.
+The real safety is `--dry-run` plus the diff.
+
+`delete` is gated because it is the one operation in the set that leaves nothing
+behind to read or correct. The flag isn't there to stop a determined agent — it
+exists so deletion can never be the result of a half-constructed command line.
+
+Datadog refuses to delete a monitor referenced by an SLO or composite monitor
+unless `force` is set. Rather than pass `--force` through automatically, that
+refusal surfaces as a `fixable_by: agent` error naming the flag, so an agent has
+to make a second deliberate decision. The referential check is real signal and
+shouldn't be defaulted away.
+
+## The `api --allow-write` gate stays
+
+`api` is an untyped hole where any method can reach any path, so it keeps its
+gate. Typed commands are self-describing and don't need the same treatment.
