@@ -3,15 +3,14 @@ package monitors_test
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/shhac/agent-dd/internal/cli/monitors"
 	"github.com/shhac/agent-dd/internal/cli/shared"
+	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 	"github.com/shhac/agent-dd/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -37,49 +36,18 @@ func runMonitors(t *testing.T, stdin string, args ...string) (string, error) {
 	root.SetIn(strings.NewReader(stdin))
 	root.SetArgs(append([]string{"monitors"}, args...))
 
-	captured, restore := captureStdio(t)
-	err := root.Execute()
-	// libcli.Run is the single error sink in the real binary: a RunE that
-	// returns gets rendered to stderr as a structured {error,fixable_by} row.
-	// Mirror that here so tests see what an agent sees.
-	if err != nil {
-		output.WriteError(os.Stderr, err)
-	}
-	restore()
+	var err error
+	captured := mockddtest.CaptureCombined(t, func() {
+		err = root.Execute()
+		// libcli.Run is the single error sink in the real binary: a RunE that
+		// returns gets rendered to stderr as a structured {error,fixable_by}
+		// row. Mirror that here so tests see what an agent sees.
+		if err != nil {
+			output.WriteError(os.Stderr, err)
+		}
+	})
 
-	return captured() + cobraOut.String(), err
-}
-
-func captureStdio(t *testing.T) (read func() string, restore func()) {
-	t.Helper()
-
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	origStdout, origStderr := os.Stdout, os.Stderr
-	os.Stdout, os.Stderr = w, w
-
-	done := make(chan string, 1)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, r)
-		done <- buf.String()
-	}()
-
-	var out string
-	var once sync.Once
-	restore = func() {
-		once.Do(func() {
-			os.Stdout, os.Stderr = origStdout, origStderr
-			_ = w.Close()
-			out = <-done
-			_ = r.Close()
-		})
-	}
-	t.Cleanup(restore)
-
-	return func() string { return out }, restore
+	return captured + cobraOut.String(), err
 }
 
 func TestCreateMonitorSendsTypedFlagsAsADefinition(t *testing.T) {

@@ -63,7 +63,7 @@ func InstallClientFactory(t *testing.T) *httptest.Server {
 // commands.
 func CaptureStdout(t *testing.T, fn func()) string {
 	t.Helper()
-	return capture(t, &os.Stdout, fn)
+	return capture(t, fn, &os.Stdout)
 }
 
 // CaptureStderr swaps os.Stderr for the duration of fn and returns whatever
@@ -71,18 +71,34 @@ func CaptureStdout(t *testing.T, fn func()) string {
 // commands emit via output.WriteError.
 func CaptureStderr(t *testing.T, fn func()) string {
 	t.Helper()
-	return capture(t, &os.Stderr, fn)
+	return capture(t, fn, &os.Stderr)
 }
 
-func capture(t *testing.T, target **os.File, fn func()) string {
+// CaptureCombined swaps both os.Stdout and os.Stderr onto a single pipe for the
+// duration of fn, so results and errors arrive in the order the command wrote
+// them. Use it when a test cares about that interleaving — a process reading
+// the CLI's output sees one stream either way.
+func CaptureCombined(t *testing.T, fn func()) string {
+	t.Helper()
+	return capture(t, fn, &os.Stdout, &os.Stderr)
+}
+
+func capture(t *testing.T, fn func(), targets ...**os.File) string {
 	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("os.Pipe: %v", err)
 	}
-	orig := *target
-	*target = w
-	defer func() { *target = orig }()
+	originals := make([]*os.File, len(targets))
+	for i, target := range targets {
+		originals[i] = *target
+		*target = w
+	}
+	defer func() {
+		for i, target := range targets {
+			*target = originals[i]
+		}
+	}()
 
 	done := make(chan struct{})
 	var buf bytes.Buffer
