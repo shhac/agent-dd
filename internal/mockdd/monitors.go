@@ -2,10 +2,12 @@ package mockdd
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Search never reaches here: the mux registers "/api/v1/monitor" as an exact
@@ -42,21 +44,20 @@ func (s *server) handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	results := make([]map[string]any, 0)
 	statusBucket := map[string]int{}
-	mutedBucket := map[string]int{}
+	// Datadog names the muted buckets with bools, not strings — keyed here the
+	// same way so the client's decoding of a mixed-type envelope stays covered.
+	mutedBucket := map[bool]int{}
 	for _, m := range s.allMonitors() {
 		name, _ := m["name"].(string)
 		// `*` is Datadog's match-all sentinel; treat it as such instead of
 		// a literal substring (which matches nothing).
 		if query == "" || query == "*" || strings.Contains(strings.ToLower(name), strings.ToLower(query)) {
-			results = append(results, m)
+			results = append(results, toSearchShape(m))
 			if state, _ := m["overall_state"].(string); state != "" {
 				statusBucket[state]++
 			}
-			if muted, _ := m["muted"].(bool); muted {
-				mutedBucket["true"]++
-			} else {
-				mutedBucket["false"]++
-			}
+			muted, _ := m["muted"].(bool)
+			mutedBucket[muted]++
 		}
 	}
 
@@ -76,11 +77,47 @@ func (s *server) handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// toSearchShape projects a stored monitor into the shape /v1/monitor/search
+// returns, which is not the shape /v1/monitor returns for the same entity:
+// state is named `status` rather than `overall_state`, and timestamps are epoch
+// seconds rather than RFC3339. Serving list-shaped objects from search once hid
+// a decode failure that made `monitors search` unusable against a real org.
+func toSearchShape(m map[string]any) map[string]any {
+	out := maps.Clone(m)
+
+	if state, ok := out["overall_state"]; ok {
+		out["status"] = state
+		delete(out, "overall_state")
+	}
+	for _, field := range []string{"created", "modified"} {
+		if ts, ok := out[field].(string); ok {
+			out[field] = rfc3339ToEpoch(ts)
+		}
+	}
+	// Search results carry a classification instead of the full options blob.
+	delete(out, "options")
+	out["classification"] = "metric"
+
+	return out
+}
+
+func rfc3339ToEpoch(ts string) int64 {
+	parsed, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return 0
+	}
+	return parsed.Unix()
+}
+
 // bucketCounts converts a tally map into Datadog's [{name, count}] envelope
 // shape used inside `counts.{status,muted,tag,type,...}` on the monitor
-// search response. Extracted so additional buckets (priority, type) can be
-// added without duplicating the projection loop.
-func bucketCounts(b map[string]int) []map[string]any {
+// search response.
+//
+// Generic over the key type because Datadog is: the status/type/tag buckets
+// name themselves with strings while muted names itself with a bool, and
+// emitting a bool as the string "true" here once hid a client-side decode
+// failure that made `monitors search` unusable against a real org.
+func bucketCounts[K comparable](b map[K]int) []map[string]any {
 	out := make([]map[string]any, 0, len(b))
 	for name, count := range b {
 		out = append(out, map[string]any{"name": name, "count": count})
