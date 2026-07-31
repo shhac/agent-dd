@@ -16,13 +16,17 @@ import (
 // monitor object — they're directly useful for triage and were previously
 // decoded as zero values because they were missing from the struct.
 type Monitor struct {
-	ID              int              `json:"id"`
-	Name            string           `json:"name"`
-	Type            string           `json:"type"`
-	Query           string           `json:"query,omitempty"`
-	Message         string           `json:"message,omitempty"`
-	Tags            []string         `json:"tags,omitempty"`
-	Status          string           `json:"overall_state,omitempty"`
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Query   string   `json:"query,omitempty"`
+	Message string   `json:"message,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+	// Emitted as `status`, matching MonitorCompact and the CLI's documented
+	// vocabulary. Datadog names it `overall_state` on /v1/monitor and `status`
+	// on /v1/monitor/search; UnmarshalJSON accepts either, and output settles
+	// on one so a caller never sees the key change between commands.
+	Status          string           `json:"status,omitempty"`
 	Muted           bool             `json:"muted,omitempty"`
 	Priority        int              `json:"priority,omitempty"`
 	LastTriggeredTs int64            `json:"last_triggered_ts,omitempty"`

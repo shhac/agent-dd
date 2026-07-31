@@ -175,6 +175,17 @@ func (s *server) updateMonitor(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 
+	// Server-owned fields survive a PUT: Datadog computes overall_state and
+	// stamps created itself, so a client body that omits them (the CLI strips
+	// read-only fields before writing) must not delete them. Storing the payload
+	// verbatim made the mock lose state on every update, which no real API does.
+	if existing, found := s.findMonitor(id); found {
+		for _, field := range []string{"overall_state", "created"} {
+			if value, ok := existing[field]; ok {
+				definition[field] = value
+			}
+		}
+	}
 	definition["modified"] = nowRFC3339()
 	if !s.replaceMonitor(id, definition) {
 		writeError(w, 404, "Monitor not found")

@@ -117,6 +117,15 @@ WRITING MONITORS
                 a template and adjust one value.
 
 MONITOR STATUSES
+  Every command names a monitor's state "status" — list, get, search, create
+  and update alike. (Datadog itself is inconsistent here, calling it
+  overall_state on some endpoints and status on others; the CLI settles on one
+  so the key never changes underneath you.)
+
+  Note "status" also appears at the top level of mutating commands to report
+  the outcome — {"status": "updated"} — which is the command's result, not a
+  monitor's state. Inside a monitor object it is always the state.
+
   Datadog returns these in title case with spaces; --status accepts either
   spelling and is case-insensitive, so "no_data", "No Data" and "no data" are
   the same filter.
