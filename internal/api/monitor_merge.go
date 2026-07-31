@@ -20,7 +20,11 @@ import (
 // describe evaluation state rather than configuration, so echoing them back on
 // PUT is at best meaningless and at worst rejected.
 var monitorReadOnlyFields = []string{
+	// Both spellings: reads normalise `overall_state` to `status`, and neither
+	// may be written back. Stripping only the raw name would let the state
+	// survive into the PUT body once normalisation moved into the client.
 	"overall_state",
+	"status",
 	"overall_state_modified",
 	"created",
 	"created_at",

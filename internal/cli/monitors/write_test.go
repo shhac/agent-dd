@@ -239,8 +239,10 @@ func TestUpdateMonitorReadsModifiesWrites(t *testing.T) {
 		t.Error("restricted_roles was dropped — the clobbering bug this design prevents")
 	}
 
-	// Server-owned fields must not be echoed back.
-	for _, readOnly := range []string{"overall_state", "created"} {
+	// Server-owned fields must not be echoed back — under either spelling.
+	// Reads normalise `overall_state` to `status`, so stripping only the raw
+	// name would let the state survive into the body.
+	for _, readOnly := range []string{"overall_state", "status", "created"} {
 		if _, present := putBody[readOnly]; present {
 			t.Errorf("read-only field %q was written back", readOnly)
 		}

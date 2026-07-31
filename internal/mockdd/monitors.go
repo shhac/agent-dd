@@ -94,9 +94,12 @@ func toSearchShape(m map[string]any) map[string]any {
 			out[field] = rfc3339ToEpoch(ts)
 		}
 	}
-	// Search results carry a classification instead of the full options blob.
+	// Search results carry a classification rather than the full options blob.
+	// The mock omits it instead of guessing: emitting a constant "metric" for
+	// every fixture would be untrue for the service-check one, and asserting
+	// something Datadog wouldn't say is the exact habit these shapes exist to
+	// break.
 	delete(out, "options")
-	out["classification"] = "metric"
 
 	return out
 }

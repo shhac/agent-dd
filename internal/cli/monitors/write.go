@@ -2,7 +2,6 @@ package monitors
 
 import (
 	"context"
-	"maps"
 	"os"
 	"strings"
 
@@ -47,7 +46,7 @@ anything.`,
 				if err != nil {
 					return err
 				}
-				shared.WriteItem(forOutput(created), g.Format)
+				shared.WriteItem(created, g.Format)
 				return nil
 			})
 		},
@@ -122,7 +121,7 @@ The response reports a before/after diff of exactly what moved.`,
 					"status":     "updated",
 					"monitor_id": id,
 					"changes":    prepared.Changes,
-					"monitor":    forOutput(updated),
+					"monitor":    updated,
 				}, g.Format)
 				return nil
 			})
@@ -176,24 +175,6 @@ Datadog refuses to delete a monitor referenced by an SLO or composite monitor;
 	cmd.Flags().BoolVar(&confirm, "yes", false, "Confirm the deletion (required)")
 	cmd.Flags().BoolVar(&force, "force", false, "Delete even when referenced by an SLO or composite monitor")
 	parent.AddCommand(cmd)
-}
-
-// forOutput renames Datadog's `overall_state` to `status` on a raw monitor map.
-// create and update echo the API response verbatim to preserve fields this CLI
-// does not model, which would otherwise make them the only commands naming the
-// state differently from list, get and search.
-func forOutput(monitor map[string]any) map[string]any {
-	if monitor == nil {
-		return nil
-	}
-	state, ok := monitor["overall_state"]
-	if !ok {
-		return monitor
-	}
-	out := maps.Clone(monitor)
-	out["status"] = state
-	delete(out, "overall_state")
-	return out
 }
 
 // requireDefinitionField reports a missing required field the same way

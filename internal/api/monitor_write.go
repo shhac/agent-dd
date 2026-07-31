@@ -63,13 +63,29 @@ func (c *Client) UpdateMonitor(ctx context.Context, id int, definition map[strin
 }
 
 // doAndDecodeMonitor decodes into the untyped monitor representation these
-// endpoints deal in, saving each caller the wrapper-deref dance.
+// endpoints deal in, saving each caller the wrapper-deref dance and applying
+// the same key normalisation the typed path gets.
 func (c *Client) doAndDecodeMonitor(ctx context.Context, method, path string, body any) (map[string]any, error) {
 	monitor, err := doAndDecode[map[string]any](c, ctx, method, path, body)
 	if err != nil {
 		return nil, err
 	}
-	return *monitor, nil
+	return normalizeMonitorMap(*monitor), nil
+}
+
+// normalizeMonitorMap gives the untyped path the same state-key contract the
+// typed path gets from Monitor.UnmarshalJSON: one name for the state, whichever
+// spelling Datadog used. Knowing that Datadog calls it `overall_state` is
+// protocol detail, so it lives here rather than being re-derived by each
+// consumer of a raw monitor map.
+func normalizeMonitorMap(monitor map[string]any) map[string]any {
+	state, ok := monitor["overall_state"]
+	if !ok {
+		return monitor
+	}
+	monitor["status"] = state
+	delete(monitor, "overall_state")
+	return monitor
 }
 
 // DeleteMonitor removes a monitor. Datadog refuses when the monitor is
