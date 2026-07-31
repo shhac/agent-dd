@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/shhac/agent-dd/internal/api"
+
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
 	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 )
@@ -239,4 +241,69 @@ func TestMockddValidateExistingMonitor(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("ValidateExistingMonitor: %v", err)
 	}
+}
+
+// The fixtures spell overall_state the way Datadog does ("Alert", "No Data"),
+// not the way the CLI documents --status (alert, no_data). This test exists to
+// keep them that way: when the fixtures used the CLI's spelling, the filter
+// compared raw strings, every test agreed, and `monitors list --status alert`
+// returned nothing against a real org.
+func TestMockddStatusFilterAcceptsBothSpellings(t *testing.T) {
+	client := mockddtest.NewTestClient(t)
+	ctx := context.Background()
+
+	all, err := client.ListMonitors(ctx, "", nil, "")
+	if err != nil {
+		t.Fatalf("ListMonitors: %v", err)
+	}
+
+	for _, spelling := range []string{"alert", "Alert", "ALERT"} {
+		got, err := client.ListMonitors(ctx, "", nil, spelling)
+		if err != nil {
+			t.Fatalf("ListMonitors(%q): %v", spelling, err)
+		}
+		if len(got) == 0 {
+			t.Errorf("--status %q matched nothing; fixtures spell it %q", spelling, firstStatus(all))
+		}
+	}
+
+	for _, spelling := range []string{"no_data", "No Data", "no data"} {
+		got, err := client.ListMonitors(ctx, "", nil, spelling)
+		if err != nil {
+			t.Fatalf("ListMonitors(%q): %v", spelling, err)
+		}
+		if len(got) == 0 {
+			t.Errorf("--status %q matched nothing", spelling)
+		}
+	}
+}
+
+// Datadog spells states in title case with spaces. A fixture that drifts back
+// to lowercase would re-hide the filter bug.
+func TestMockddFixturesUseDatadogStatusSpelling(t *testing.T) {
+	client := mockddtest.NewTestClient(t)
+
+	all, err := client.ListMonitors(context.Background(), "", nil, "")
+	if err != nil {
+		t.Fatalf("ListMonitors: %v", err)
+	}
+
+	valid := map[string]bool{"Alert": true, "Warn": true, "OK": true, "No Data": true, "Ignored": true, "Skipped": true, "Unknown": true}
+	for _, m := range all {
+		if m.Status == "" {
+			continue
+		}
+		if !valid[m.Status] {
+			t.Errorf("monitor %d has overall_state %q — Datadog returns Alert/Warn/OK/No Data", m.ID, m.Status)
+		}
+	}
+}
+
+func firstStatus(monitors []api.Monitor) string {
+	for _, m := range monitors {
+		if m.Status != "" {
+			return m.Status
+		}
+	}
+	return "(none)"
 }

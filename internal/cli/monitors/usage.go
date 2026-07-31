@@ -117,11 +117,18 @@ WRITING MONITORS
                 a template and adjust one value.
 
 MONITOR STATUSES
-  ok        Monitor is healthy
-  alert     Monitor is in alert state
-  warn      Monitor is in warning state
-  no_data   Monitor has no data
-  unknown   Monitor status is unknown
+  Datadog returns these in title case with spaces; --status accepts either
+  spelling and is case-insensitive, so "no_data", "No Data" and "no data" are
+  the same filter.
+
+  Datadog value   --status accepts     Meaning
+  OK              ok                   Monitor is healthy
+  Alert           alert                Monitor is in alert state
+  Warn            warn                 Monitor is in warning state
+  No Data         no_data              Monitor has received no data
+  Ignored         ignored              Monitor is ignored
+  Skipped         skipped              Evaluation was skipped
+  Unknown         unknown              Status could not be determined
 
 COMPACT vs FULL OUTPUT
   Default output shows: id, name, status, type

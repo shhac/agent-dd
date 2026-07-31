@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Monitor represents a Datadog monitor. `Muted`, `LastTriggeredTs`, and
@@ -115,15 +116,26 @@ func (c *Client) SearchMonitors(ctx context.Context, query string, status string
 	return resp, nil
 }
 
+// filterMonitorsByStatus matches on a normalised form because the two sides
+// spell the same state differently: Datadog returns "Alert", "OK", "No Data",
+// "Warn", while the CLI has always documented --status as alert|warn|ok|no_data.
+// Comparing them raw meant `--status alert` matched nothing against a real org.
 func filterMonitorsByStatus(monitors []Monitor, status string) []Monitor {
 	if status == "" {
 		return monitors
 	}
+	want := normalizeMonitorStatus(status)
 	filtered := make([]Monitor, 0, len(monitors))
 	for _, m := range monitors {
-		if m.Status == status {
+		if normalizeMonitorStatus(m.Status) == want {
 			filtered = append(filtered, m)
 		}
 	}
 	return filtered
+}
+
+// normalizeMonitorStatus folds case and treats spaces and underscores alike,
+// so "No Data", "no_data" and "no data" are one value.
+func normalizeMonitorStatus(status string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(status)), " ", "_")
 }

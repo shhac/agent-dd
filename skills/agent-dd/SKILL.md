@@ -122,7 +122,7 @@ For full operator reference (wildcards, booleans, numeric comparisons, facets): 
 
 - **Time formats**: relative (`now-15m`, `now-1h`, `now-7d`), RFC3339, or unix epoch. Defaults: `--from now-1h`, `--to now`
 - **Output**: NDJSON by default for all commands (list, search, and single-item get). `--full` for complete API response. `--format json|yaml|jsonl` to override. `get <id>...` accepts 1..N ids — see Get contract below.
-- **Monitor statuses**: `ok`, `alert`, `warn`, `no_data`, `unknown`
+- **Monitor statuses**: Datadog returns `OK`, `Alert`, `Warn`, `No Data`, `Ignored`, `Skipped`, `Unknown`. `--status` is case-insensitive and treats spaces and underscores alike, so `alert`, `Alert`, `no_data` and `No Data` all work — but the value in output is Datadog's spelling
 - **Incident severities**: `SEV-1` (critical) through `SEV-5` (informational)
 - **Incident statuses**: `active`, `stable`, `resolved`
 
