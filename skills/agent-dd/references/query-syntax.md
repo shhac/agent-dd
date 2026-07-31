@@ -39,6 +39,60 @@ avg:app.request.duration{service:api,env:prod}      # multiple filters (AND-ed)
 
 Aggregations: `avg`, `sum`, `min`, `max`, `count`.
 
+## Monitor queries
+
+Used by `monitors create --query` and `monitors update --query`. **Not the same
+as a metric query** — a monitor query adds an evaluation window and a threshold
+comparison, and the grammar differs per monitor `--type`. Always `--dry-run`
+first; Datadog parses the query with the same engine that would run it.
+
+### `--type "metric alert"`
+
+```
+time_aggr(time_window):space_aggr:metric{tags} [by {key}] operator threshold
+```
+
+```
+avg(last_5m):avg:system.cpu.user{service:web} > 90
+sum(last_10m):sum:http.errors{env:prod} > 50
+avg(last_5m):avg:system.mem.used{*} by {host} > 90       # multi-alert, one per host
+max(last_15m):max:app.request.duration{service:api} >= 2000
+```
+
+- `time_aggr` — how points combine over the window: `avg`, `sum`, `min`, `max`
+- `time_window` — `last_1m`, `last_5m`, `last_10m`, `last_15m`, `last_30m`, `last_1h`, `last_4h`, `last_1d`
+- `space_aggr` — how series combine across sources: `avg`, `sum`, `min`, `max`
+- `by {key}` — makes it a multi-alert: a separate notification per group
+- `operator` — `>`, `>=`, `<`, `<=`, `==`
+
+The threshold in the query should match `--threshold-critical`.
+
+### `--type "log alert"`
+
+```
+logs("<log query>").index("<index>").rollup("<method>").by("<facet>").last("<window>") operator threshold
+```
+
+```
+logs("service:web AND status:error").index("*").rollup("count").last("5m") > 10
+logs("status:error").index("main").rollup("count").by("service").last("15m") > 100
+```
+
+The string inside `logs(...)` is ordinary log query syntax (see above).
+
+### `--type "service check"`
+
+```
+"<check>".over(tags).last(count).by(group).count_by_status()
+```
+
+```
+"datadog.agent.up".over("service:web").last(3).count_by_status()
+"http.can_connect".over("instance:api").last(4).by("host").count_by_status()
+```
+
+`over(...)` is required. `last(count)` must be at least your largest threshold.
+
 ## Trace queries
 
 Traces use the same log query syntax but with APM-specific facets.

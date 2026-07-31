@@ -1,6 +1,6 @@
 ---
 name: agent-dd
-description: Triage and investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs. Use when the user asks about alerts, log errors, metric spikes, trace latency, incident management, SLO burn rate, error budgets, or on-call triage in Datadog.
+description: Triage and investigate Datadog monitors, logs, metrics, traces, incidents, and SLOs, and create or adjust monitors to cover what you find. Use when the user asks about alerts, log errors, metric spikes, trace latency, incident management, SLO burn rate, error budgets, or on-call triage in Datadog — or asks to create, edit, retune, or delete a Datadog monitor, change alert thresholds, or add alerting for something that just broke.
 allowed-tools: Bash(agent-dd *) Read Grep Glob
 ---
 
@@ -108,6 +108,13 @@ agent-dd slo history <id> --from now-7d --to now
 Log queries: `service:web status:error @http.status_code:>500 "timeout"`
 Metric queries: `avg:system.cpu.user{host:web-1} by {service}`
 Trace queries: same as log syntax, with `@duration:>1000000000` (nanoseconds)
+Monitor queries: `avg(last_5m):avg:system.cpu.user{service:web} > 90`
+
+**A monitor query is not a metric query.** It adds an evaluation window
+(`avg(last_5m):`) and a threshold comparison (`> 90`), and the grammar differs
+per `--type` — `log alert` and `service check` look nothing like the above.
+Read [references/query-syntax.md](references/query-syntax.md#monitor-queries)
+before writing one, and `--dry-run` it.
 
 For full operator reference (wildcards, booleans, numeric comparisons, facets): see [references/query-syntax.md](references/query-syntax.md)
 

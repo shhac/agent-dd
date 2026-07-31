@@ -64,6 +64,28 @@ EXAMPLES
   # Delete (--yes required; --force if an SLO references it)
   agent-dd monitors delete 12345 --yes
 
+QUERY SYNTAX (--query)
+  A monitor query is NOT a metric query — it adds an evaluation window and a
+  threshold comparison, and the grammar depends on --type.
+
+  metric alert    time_aggr(window):space_aggr:metric{tags} [by {key}] op N
+                  avg(last_5m):avg:system.cpu.user{service:web} > 90
+                  sum(last_10m):sum:http.errors{env:prod} > 50
+                  avg(last_5m):avg:system.mem.used{*} by {host} > 90
+                  windows: last_1m/5m/10m/15m/30m/1h/4h/1d
+                  aggregations: avg, sum, min, max   operators: > >= < <= ==
+                  "by {key}" makes it a multi-alert — one notification per group
+
+  log alert       logs("<log query>").index("<i>").rollup("<m>")[.by("<facet>")].last("<w>") op N
+                  logs("service:web AND status:error").index("*").rollup("count").last("5m") > 10
+
+  service check   "<check>".over(tags).last(count)[.by(group)].count_by_status()
+                  "datadog.agent.up".over("service:web").last(3).count_by_status()
+                  over(...) is required; last(count) >= your largest threshold
+
+  The threshold in the query should match --threshold-critical. Always
+  --dry-run first — Datadog parses it with the engine that would run it.
+
 WRITING MONITORS
   --dry-run     Validates against Datadog's own validate endpoint and writes
                 nothing. The query is parsed by the engine that would run it,
