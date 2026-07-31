@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-func handleMetricQuery(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleMetricQuery(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	query := r.URL.Query().Get("query")
 	// Mirror the real DD behavior: malformed queries return HTTP 200 with
 	// status="error" and the reason in `error`, not a 4xx. The "fail-query"
@@ -53,7 +56,10 @@ func handleMetricQuery(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleMetricList(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleMetricList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	// /v2/metrics has no documented `filter[metric]` server-side filter;
 	// agent-dd does substring matching client-side after we return everything.
 	metrics := []string{
@@ -70,7 +76,10 @@ func handleMetricList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"data": data})
 }
 
-func handleMetricMetadata(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleMetricMetadata(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	name := strings.TrimPrefix(r.URL.Path, "/api/v1/metrics/")
 	// Real /v1/metrics/{name} response does NOT echo the metric name; the
 	// client sets it from the request arg.

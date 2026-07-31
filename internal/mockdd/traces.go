@@ -9,15 +9,16 @@ import (
 	"time"
 )
 
-func handleTraceSearch(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleTraceSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
 	// Mirror the real /api/v2/spans/events/search contract: reject any
 	// body that is missing the JSON:API data envelope.
 	var body map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if _, hasData := body["data"]; !hasData {
-		writeJSON(w, 400, map[string]any{
-			"errors": []string{`document is missing required top-level members; must have one of: "data", "meta", "errors"`},
-		})
+		writeError(w, 400, `document is missing required top-level members; must have one of: "data", "meta", "errors"`)
 		return
 	}
 
@@ -62,7 +63,10 @@ func handleTraceSearch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleServiceList(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleServiceList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	writeJSON(w, 200, map[string]any{
 		"data": map[string]any{
 			"attributes": map[string]any{

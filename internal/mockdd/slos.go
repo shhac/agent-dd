@@ -5,7 +5,10 @@ import (
 	"strings"
 )
 
-func handleSLOList(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleSLOList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	search := r.URL.Query().Get("query")
 	results := make([]map[string]any, 0)
 	for _, s := range slos {
@@ -17,7 +20,10 @@ func handleSLOList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"data": results})
 }
 
-func handleSLOByID(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleSLOByID(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/slo/")
 	parts := strings.Split(path, "/")
 	sloID := parts[0]
@@ -46,5 +52,5 @@ func handleSLOByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, 404, map[string]any{"errors": []string{"SLO not found"}})
+	writeError(w, 404, "SLO not found")
 }

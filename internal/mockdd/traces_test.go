@@ -2,11 +2,9 @@ package mockdd_test
 
 import (
 	"context"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/shhac/agent-dd/internal/api"
-	"github.com/shhac/agent-dd/internal/mockdd"
+	"github.com/shhac/agent-dd/internal/mockdd/mockddtest"
 )
 
 // Drives SearchTraces against the real mockdd handler so the v2 envelope
@@ -14,10 +12,7 @@ import (
 // between the fixture shape mockdd emits and the structs api expects to
 // decode.
 func TestMockddTraceSearchDecodesV2ErrorObject(t *testing.T) {
-	srv := httptest.NewServer(mockdd.NewHandler())
-	t.Cleanup(srv.Close)
-
-	client := api.NewTestClient(srv.URL+"/api", "test-api-key", "test-app-key")
+	client := mockddtest.NewTestClient(t)
 	resp, err := client.SearchTraces(context.Background(), "*", "", "now-1h", "now", 50, "")
 	if err != nil {
 		t.Fatalf("SearchTraces: %v", err)

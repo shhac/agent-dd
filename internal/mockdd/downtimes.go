@@ -1,47 +1,46 @@
 package mockdd
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
-var (
-	activeDowntimes = make([]map[string]any, 0)
-	downtimeCounter int
-)
+func downtimeID(counter int) string {
+	return fmt.Sprintf("dt-%06d", counter)
+}
 
-func handleDowntimes(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
-
-		downtimeCounter++
-		dtID := fmt.Sprintf("dt-%06d", downtimeCounter)
-
-		data, _ := body["data"].(map[string]any)
-		attrs, _ := data["attributes"].(map[string]any)
-
-		dt := map[string]any{
-			"id":   dtID,
-			"type": "downtime",
-			"attributes": map[string]any{
-				"status":  "active",
-				"message": attrs["message"],
-				"scope":   attrs["scope"],
-			},
-		}
-		activeDowntimes = append(activeDowntimes, dt)
-		writeJSON(w, 200, map[string]any{"data": dt})
-		return
+func (s *server) handleDowntimes(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		s.createDowntime(w, r)
+	case http.MethodGet:
+		s.listDowntimes(w, r)
+	default:
+		methodNotAllowed(w, http.MethodGet, http.MethodPost)
 	}
+}
 
+func (s *server) createDowntime(w http.ResponseWriter, r *http.Request) {
+	attrs := decodeAttributes(r)
+
+	dt := s.addDowntime(map[string]any{
+		"type": "downtime",
+		"attributes": map[string]any{
+			"status":  "active",
+			"message": attrs["message"],
+			"scope":   attrs["scope"],
+		},
+	})
+	writeJSON(w, 200, map[string]any{"data": dt})
+}
+
+func (s *server) listDowntimes(w http.ResponseWriter, r *http.Request) {
 	monitorFilter := r.URL.Query().Get("filter[monitor_id]")
 	statusFilter := r.URL.Query().Get("filter[status]")
 
 	results := make([]map[string]any, 0)
-	for _, dt := range activeDowntimes {
+	for _, dt := range s.allDowntimes() {
 		attrs, _ := dt["attributes"].(map[string]any)
 		scope, _ := attrs["scope"].(string)
 		status, _ := attrs["status"].(string)
@@ -57,18 +56,16 @@ func handleDowntimes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"data": results})
 }
 
-func handleDowntimeByID(w http.ResponseWriter, r *http.Request) {
-	dtID := strings.TrimPrefix(r.URL.Path, "/api/v2/downtime/")
-	if r.Method == http.MethodDelete {
-		for i, dt := range activeDowntimes {
-			if id, _ := dt["id"].(string); id == dtID {
-				activeDowntimes = append(activeDowntimes[:i], activeDowntimes[i+1:]...)
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-		}
-		writeJSON(w, 404, map[string]any{"errors": []string{"Downtime not found"}})
+func (s *server) handleDowntimeByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		methodNotAllowed(w, http.MethodDelete)
 		return
 	}
-	writeJSON(w, 405, map[string]any{"errors": []string{"Method not allowed"}})
+
+	dtID := strings.TrimPrefix(r.URL.Path, "/api/v2/downtime/")
+	if !s.removeDowntime(dtID) {
+		writeError(w, 404, "Downtime not found")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

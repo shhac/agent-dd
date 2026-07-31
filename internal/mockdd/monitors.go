@@ -6,20 +6,28 @@ import (
 	"strings"
 )
 
-func handleMonitors(w http.ResponseWriter, r *http.Request) {
-	if strings.HasSuffix(r.URL.Path, "/search") {
-		handleMonitorSearch(w, r)
-		return
+// Search never reaches here: the mux registers "/api/v1/monitor" as an exact
+// pattern, so /api/v1/monitor/search resolves to the "/api/v1/monitor/" subtree
+// and lands in handleMonitorByID, which dispatches it.
+func (s *server) handleMonitors(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		writeJSON(w, 200, s.allMonitors())
+	default:
+		methodNotAllowed(w, http.MethodGet)
 	}
-	writeJSON(w, 200, monitors)
 }
 
-func handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleMonitorSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+
 	query := r.URL.Query().Get("query")
 	results := make([]map[string]any, 0)
 	statusBucket := map[string]int{}
 	mutedBucket := map[string]int{}
-	for _, m := range monitors {
+	for _, m := range s.allMonitors() {
 		name, _ := m["name"].(string)
 		// `*` is Datadog's match-all sentinel; treat it as such instead of
 		// a literal substring (which matches nothing).
@@ -64,25 +72,30 @@ func bucketCounts(b map[string]int) []map[string]any {
 	return out
 }
 
-func handleMonitorByID(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleMonitorByID(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/monitor/")
 	if path == "search" {
-		handleMonitorSearch(w, r)
+		s.handleMonitorSearch(w, r)
+		return
+	}
+
+	// Verb before ID: a wrong method on a bad ID should still read as 405,
+	// matching every other by-ID handler in the package.
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 
 	parts := strings.Split(path, "/")
 	id, err := strconv.Atoi(parts[0])
 	if err != nil {
-		writeJSON(w, 400, map[string]any{"errors": []string{"invalid monitor ID"}})
+		writeError(w, 400, "invalid monitor ID")
 		return
 	}
 
-	for _, m := range monitors {
-		if mid, _ := m["id"].(int); mid == id {
-			writeJSON(w, 200, m)
-			return
-		}
+	m, ok := s.findMonitor(id)
+	if !ok {
+		writeError(w, 404, "Monitor not found")
+		return
 	}
-	writeJSON(w, 404, map[string]any{"errors": []string{"Monitor not found"}})
+	writeJSON(w, 200, m)
 }

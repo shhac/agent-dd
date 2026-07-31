@@ -1,30 +1,34 @@
 package mockdd
 
 import (
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
-func handleEventList(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleEventList(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	now := nowUnix()
 	result := make([]map[string]any, len(events))
 	for i, e := range events {
-		copy := make(map[string]any)
-		for k, v := range e {
-			copy[k] = v
-		}
-		copy["date_happened"] = now - int64((len(events)-i)*600)
-		result[i] = copy
+		event := maps.Clone(e)
+		event["date_happened"] = now - int64((len(events)-i)*600)
+		result[i] = event
 	}
 	writeJSON(w, 200, map[string]any{"events": result})
 }
 
-func handleEventByID(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleEventByID(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/v1/events/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		writeJSON(w, 400, map[string]any{"errors": []string{"invalid event ID"}})
+		writeError(w, 400, "invalid event ID")
 		return
 	}
 	for _, e := range events {
@@ -33,5 +37,5 @@ func handleEventByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, 404, map[string]any{"errors": []string{"Event not found"}})
+	writeError(w, 404, "Event not found")
 }

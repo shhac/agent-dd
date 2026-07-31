@@ -2,12 +2,19 @@ package mockdd
 
 import "time"
 
-var monitors = []map[string]any{
-	{"id": 1001, "name": "High CPU on checkout-service", "type": "metric alert", "overall_state": "alert", "query": "avg(last_5m):avg:system.cpu.user{service:checkout} > 90", "message": "CPU usage is critically high on checkout-service", "tags": []string{"service:checkout", "env:production", "team:platform"}, "muted": false, "priority": 1, "last_triggered_ts": 1711893600, "created": "2025-11-01T08:00:00Z", "modified": "2026-03-15T14:30:00Z"},
-	{"id": 1002, "name": "Memory usage on search-service", "type": "metric alert", "overall_state": "warn", "query": "avg(last_10m):avg:system.mem.used{service:search} > 80", "message": "Memory usage elevated on search-service", "tags": []string{"service:search", "env:production", "team:search"}, "muted": false, "priority": 2, "last_triggered_ts": 1711980000, "created": "2025-12-01T10:00:00Z", "modified": "2026-03-20T09:00:00Z"},
-	{"id": 1003, "name": "Error rate on payment-api", "type": "metric alert", "overall_state": "ok", "query": "sum(last_5m):sum:http.errors{service:payment-api} > 50", "message": "Error rate returned to normal", "tags": []string{"service:payment-api", "env:production", "team:payments"}, "muted": false, "priority": 1, "created": "2025-10-15T12:00:00Z", "modified": "2026-03-28T16:00:00Z"},
-	{"id": 1004, "name": "No data from inventory-worker", "type": "service check", "overall_state": "no_data", "query": "\"datadog.agent.up\".over(\"service:inventory-worker\")", "message": "inventory-worker has stopped reporting", "tags": []string{"service:inventory-worker", "env:production", "team:warehouse"}, "muted": true, "priority": 3, "last_triggered_ts": 1711893600, "created": "2026-01-10T14:00:00Z", "modified": "2026-03-30T11:00:00Z"},
-	{"id": 1005, "name": "Latency on gateway-api", "type": "metric alert", "overall_state": "ok", "query": "avg(last_5m):avg:http.request.duration{service:gateway-api} > 500", "message": "Gateway API latency is within acceptable range", "tags": []string{"service:gateway-api", "env:production", "team:platform"}, "muted": false, "priority": 2, "created": "2026-02-01T09:00:00Z", "modified": "2026-03-31T08:00:00Z"},
+// monitorFixtures returns a freshly constructed fixture set. It is a function
+// rather than a package var because monitors are writable — each server needs
+// its own copy, and returning new literals keeps the value types intact in a
+// way a generic deep-clone would not (a JSON round-trip would turn every `id`
+// into a float64 and silently break ID lookups).
+func monitorFixtures() []map[string]any {
+	return []map[string]any{
+		{"id": 1001, "name": "High CPU on checkout-service", "type": "metric alert", "overall_state": "alert", "query": "avg(last_5m):avg:system.cpu.user{service:checkout} > 90", "message": "CPU usage is critically high on checkout-service", "tags": []string{"service:checkout", "env:production", "team:platform"}, "muted": false, "priority": 1, "last_triggered_ts": 1711893600, "created": "2025-11-01T08:00:00Z", "modified": "2026-03-15T14:30:00Z"},
+		{"id": 1002, "name": "Memory usage on search-service", "type": "metric alert", "overall_state": "warn", "query": "avg(last_10m):avg:system.mem.used{service:search} > 80", "message": "Memory usage elevated on search-service", "tags": []string{"service:search", "env:production", "team:search"}, "muted": false, "priority": 2, "last_triggered_ts": 1711980000, "created": "2025-12-01T10:00:00Z", "modified": "2026-03-20T09:00:00Z"},
+		{"id": 1003, "name": "Error rate on payment-api", "type": "metric alert", "overall_state": "ok", "query": "sum(last_5m):sum:http.errors{service:payment-api} > 50", "message": "Error rate returned to normal", "tags": []string{"service:payment-api", "env:production", "team:payments"}, "muted": false, "priority": 1, "created": "2025-10-15T12:00:00Z", "modified": "2026-03-28T16:00:00Z"},
+		{"id": 1004, "name": "No data from inventory-worker", "type": "service check", "overall_state": "no_data", "query": "\"datadog.agent.up\".over(\"service:inventory-worker\")", "message": "inventory-worker has stopped reporting", "tags": []string{"service:inventory-worker", "env:production", "team:warehouse"}, "muted": true, "priority": 3, "last_triggered_ts": 1711893600, "created": "2026-01-10T14:00:00Z", "modified": "2026-03-30T11:00:00Z"},
+		{"id": 1005, "name": "Latency on gateway-api", "type": "metric alert", "overall_state": "ok", "query": "avg(last_5m):avg:http.request.duration{service:gateway-api} > 500", "message": "Gateway API latency is within acceptable range", "tags": []string{"service:gateway-api", "env:production", "team:platform"}, "muted": false, "priority": 2, "created": "2026-02-01T09:00:00Z", "modified": "2026-03-31T08:00:00Z"},
+	}
 }
 
 var events = []map[string]any{
@@ -58,11 +65,19 @@ func incidentWithCommander(id, title, state, severity string, customerImpacted b
 	}
 }
 
-var incidents = []map[string]any{
-	incidentWithCommander("inc-a1b2c3d4", "Elevated error rate on checkout-service", "active", "SEV-2", true, 102, "2026-03-31T14:00:00Z"),
-	incidentWithCommander("inc-e5f6g7h8", "Search latency degradation", "stable", "SEV-3", false, 103, "2026-03-30T10:00:00Z"),
-	incidentWithCommander("inc-i9j0k1l2", "Payment gateway timeout", "resolved", "SEV-1", true, 104, "2026-03-28T08:00:00Z"),
+// incidentFixtures is a function for the same reason as monitorFixtures:
+// incidents are writable, so each server needs its own set.
+func incidentFixtures() []map[string]any {
+	return []map[string]any{
+		incidentWithCommander("inc-a1b2c3d4", "Elevated error rate on checkout-service", "active", "SEV-2", true, 102, "2026-03-31T14:00:00Z"),
+		incidentWithCommander("inc-e5f6g7h8", "Search latency degradation", "stable", "SEV-3", false, 103, "2026-03-30T10:00:00Z"),
+		incidentWithCommander("inc-i9j0k1l2", "Payment gateway timeout", "resolved", "SEV-1", true, 104, "2026-03-28T08:00:00Z"),
+	}
 }
+
+// Everything below is read-only reference data. It is never written by a
+// handler, so sharing one copy across servers is safe — only writable
+// collections need to live on the per-server store.
 
 var slos = []map[string]any{
 	{"id": "slo-aaa111", "name": "Checkout Availability", "type": "monitor", "description": "99.9% availability for checkout flow", "tags": []string{"service:checkout", "team:platform"}, "thresholds": []map[string]any{{"timeframe": "30d", "target": 99.9, "warning": 99.95}}, "overall_status": map[string]any{"status": 99.92, "error_budget_remaining": 0.02}},

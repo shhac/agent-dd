@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-func handleLogSearch(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleLogSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
 	var body map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
@@ -63,7 +66,10 @@ func handleLogSearch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleLogAggregate(w http.ResponseWriter, _ *http.Request) {
+func (s *server) handleLogAggregate(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodPost) {
+		return
+	}
 	buckets := []map[string]any{
 		{"by": map[string]any{"service": "checkout-service", "status": "error"}, "computes": map[string]any{"c0": 142}},
 		{"by": map[string]any{"service": "search-service", "status": "warn"}, "computes": map[string]any{"c0": 87}},

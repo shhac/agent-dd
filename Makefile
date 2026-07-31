@@ -5,8 +5,12 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/agent-dd
 
+# -race is load-bearing: mockdd's per-server store is reached concurrently
+# (httptest serves each request on its own goroutine), and a lock-discipline
+# regression there would pass every assertion while silently corrupting the
+# fixture every other package's tests are driven from.
 test:
-	go test ./... -count=1
+	go test ./... -count=1 -race
 
 test-short:
 	go test ./... -count=1 -short
