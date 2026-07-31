@@ -25,15 +25,19 @@ type store struct {
 	incidents []map[string]any
 	downtimes []map[string]any
 
+	monitorCounter  int
 	downtimeCounter int
 }
 
 // newStore seeds a server with its own copy of the writable fixtures.
+// monitorCounter starts above the fixture IDs so a created monitor never
+// collides with a seeded one.
 func newStore() *store {
 	return &store{
-		monitors:  monitorFixtures(),
-		incidents: incidentFixtures(),
-		downtimes: make([]map[string]any, 0),
+		monitors:       monitorFixtures(),
+		incidents:      incidentFixtures(),
+		downtimes:      make([]map[string]any, 0),
+		monitorCounter: 9000,
 	}
 }
 
@@ -71,6 +75,40 @@ func (s *store) findMonitor(id int) (map[string]any, bool) {
 		return nil, false
 	}
 	return maps.Clone(s.monitors[i]), true
+}
+
+func (s *store) addMonitor(m map[string]any) map[string]any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.monitorCounter++
+	m["id"] = s.monitorCounter
+	s.monitors = append(s.monitors, m)
+	return maps.Clone(m)
+}
+
+// replaceMonitor swaps the stored monitor for `m`, preserving its position and
+// its ID. Reports false when no monitor with that ID exists.
+func (s *store) replaceMonitor(id int, m map[string]any) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.monitorIndex(id)
+	if i < 0 {
+		return false
+	}
+	m["id"] = id
+	s.monitors[i] = m
+	return true
+}
+
+func (s *store) removeMonitor(id int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.monitorIndex(id)
+	if i < 0 {
+		return false
+	}
+	s.monitors = append(s.monitors[:i], s.monitors[i+1:]...)
+	return true
 }
 
 func (s *store) allIncidents() []map[string]any {

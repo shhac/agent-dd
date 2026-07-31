@@ -75,6 +75,11 @@ func incidentFixtures() []map[string]any {
 	}
 }
 
+// referencedMonitorIDs are fixture monitors an SLO points at. Datadog refuses
+// to delete such a monitor without `force`, and the mock models that refusal so
+// the --force path is reachable in tests.
+var referencedMonitorIDs = []int{1003}
+
 // Everything below is read-only reference data. It is never written by a
 // handler, so sharing one copy across servers is safe — only writable
 // collections need to live on the per-server store.
