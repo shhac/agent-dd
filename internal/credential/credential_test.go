@@ -2,9 +2,11 @@ package credential_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/shhac/agent-dd/internal/config"
@@ -162,5 +164,65 @@ func TestList(t *testing.T) {
 	}
 	if names[0] != "org-a" || names[1] != "org-b" {
 		t.Errorf("List = %v, want [org-a org-b]", names)
+	}
+}
+
+// Concurrent Store calls must not lose each other's entries.
+//
+// This is the failure that matters most for this index: the keychain (or, on
+// the headless fallback exercised here, the 0600 file itself) already holds
+// the secret by the time the index write happens, so an entry lost to a
+// racing writer leaves a live credential that `auth list` cannot show and
+// `auth remove` cannot delete — it looks the name up in the index first.
+// Before this went through creds.Store.Update, twenty concurrent writers
+// against the hand-rolled read/mutate/os.WriteFile version left one
+// surviving entry.
+func TestConcurrentStoresDoNotLoseEntries(t *testing.T) {
+	t.Setenv("AGENT_DD_NO_KEYCHAIN", "1")
+	dir := t.TempDir()
+	config.SetConfigDir(dir)
+	config.ClearCache()
+	t.Cleanup(func() { config.SetConfigDir(""); config.ClearCache() })
+
+	const writers = 20
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			name := fmt.Sprintf("org-%02d", i)
+			if _, err := credential.Store(name, credential.Credential{
+				APIKey: fmt.Sprintf("api-%02d", i),
+				AppKey: fmt.Sprintf("app-%02d", i),
+			}); err != nil {
+				t.Errorf("Store(%s): %v", name, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	names, err := credential.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(names) != writers {
+		t.Fatalf("List returned %d entries, want %d — some were lost to a concurrent write", len(names), writers)
+	}
+
+	for i := range writers {
+		name := fmt.Sprintf("org-%02d", i)
+		cred, err := credential.Get(name)
+		if err != nil {
+			t.Errorf("%s was lost from the index — its keychain/file secret is now orphaned: %v", name, err)
+			continue
+		}
+		wantAPIKey := fmt.Sprintf("api-%02d", i)
+		wantAppKey := fmt.Sprintf("app-%02d", i)
+		if cred.APIKey != wantAPIKey {
+			t.Errorf("%s APIKey = %q, want %q", name, cred.APIKey, wantAPIKey)
+		}
+		if cred.AppKey != wantAppKey {
+			t.Errorf("%s AppKey = %q, want %q", name, cred.AppKey, wantAppKey)
+		}
 	}
 }

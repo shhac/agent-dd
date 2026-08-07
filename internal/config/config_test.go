@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/shhac/agent-dd/internal/config"
@@ -105,5 +107,50 @@ func TestSetDefault(t *testing.T) {
 	cfg = config.Read()
 	if cfg.DefaultOrg != "two" {
 		t.Errorf("DefaultOrg = %q, want %q", cfg.DefaultOrg, "two")
+	}
+}
+
+// Concurrent StoreOrganization calls must not lose each other's entries.
+//
+// The hand-rolled version read the whole config, mutated a copy, and wrote it
+// back with os.WriteFile — no lock. Two concurrent `org add` invocations each
+// built their write from a snapshot taken before the other landed, so the
+// loser's organization was silently erased. This also exercises the
+// in-process package-level cache: Read() must not hand back a stale cached
+// *Config to a writer racing another StoreOrganization call.
+func TestConcurrentStoreOrganizationDoesNotLoseEntries(t *testing.T) {
+	setup(t)
+
+	const writers = 20
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			alias := fmt.Sprintf("org-%02d", i)
+			site := fmt.Sprintf("site-%02d.datadoghq.com", i)
+			if err := config.StoreOrganization(alias, config.Organization{Site: site}); err != nil {
+				t.Errorf("StoreOrganization(%s): %v", alias, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	config.ClearCache()
+	cfg := config.Read()
+	if len(cfg.Organizations) != writers {
+		t.Fatalf("Organizations has %d entries, want %d — some were lost to a concurrent write", len(cfg.Organizations), writers)
+	}
+	for i := range writers {
+		alias := fmt.Sprintf("org-%02d", i)
+		org, ok := cfg.Organizations[alias]
+		if !ok {
+			t.Errorf("%s was lost from the config", alias)
+			continue
+		}
+		want := fmt.Sprintf("site-%02d.datadoghq.com", i)
+		if org.Site != want {
+			t.Errorf("%s Site = %q, want %q", alias, org.Site, want)
+		}
 	}
 }
